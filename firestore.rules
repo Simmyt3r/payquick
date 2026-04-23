@@ -1,0 +1,43 @@
+// firestore.rules
+// Deploy with: firebase deploy --only firestore:rules
+// Switch from test mode to these rules before going live.
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Users collection ─────────────────────────────────
+    // A user can only read and write their OWN document.
+    match /users/{userId} {
+      allow read:  if request.auth != null && request.auth.uid == userId;
+      // Allow user to update their own profile (NOT walletBalance — only functions do that)
+      allow update: if request.auth != null
+                    && request.auth.uid == userId
+                    && !request.resource.data.diff(resource.data).affectedKeys()
+                        .hasAny(['walletBalance']);
+      // Only Cloud Functions (via Admin SDK) can create user documents
+      allow create: if request.auth != null && request.auth.uid == userId;
+    }
+
+    // ── Transactions collection ───────────────────────────
+    // Users can only READ their own transactions.
+    // Only Cloud Functions (Admin SDK) can write transactions.
+    match /transactions/{txId} {
+      allow read:  if request.auth != null
+                   && resource.data.userId == request.auth.uid;
+      allow write: if false;  // Cloud Functions write via Admin SDK (bypasses rules)
+    }
+
+    // ── Settings collection (app config) ─────────────────
+    // Read-only for authenticated users
+    match /settings/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if false;
+    }
+
+    // Block all other access
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
