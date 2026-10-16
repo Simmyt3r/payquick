@@ -32,7 +32,7 @@ VTpass request IDs must start with the current YYYYMMDDHHmm date and time in Afr
 
 Configure the backend variables below. NEVER add real credentials to frontend code or GitHub:
 
-- DATABASE_URL: new Aiven PostgreSQL database using TLS; run migrations 0001, 0002, 0003 in that order.
+- DATABASE_URL: new Aiven PostgreSQL database using TLS; run migrations 0001, 0002, 0003, 0004 in that order.
 - JWT_SECRET: strong, random secret of at least 48 characters.
 - VTPASS_ENV=sandbox, VTPASS_API_KEY and VTPASS_SECRET_KEY from sandbox account.
 - TOKEN_ENCRYPTION_KEY: generate with \`python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"\` and retain securely, with backups and a key-rotation plan.
@@ -48,6 +48,7 @@ Configure the backend variables below. NEVER add real credentials to frontend co
 - Exit code 0: no detected anomalies. Any warning/critical report returns exit code 1.
 - Findings **must not** trigger an automatic refund or ledger adjustment.
 - Outputs contain counts, aggregate kobo and statuses only, not token values or user identities.
+- Authenticated operators with a trusted database-assigned `operator` role can also inspect the same aggregate report at `GET /api/operator/reconciliation`. No API allows customer self-promotion, provider refunds or ledger edits.
 - This is internal accounting consistency. It **does not replace** independently matching VTpass/Paystack merchant statements or bank settlements.
 
 ### Run worker
