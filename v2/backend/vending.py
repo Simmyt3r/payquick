@@ -223,7 +223,7 @@ def claim_requery():
     with connect() as conn:
         with conn.transaction(), conn.cursor() as cur:
             cur.execute(
-                "SELECT id,provider_request_id FROM electricity_orders "
+                "SELECT id,provider_request_id,attempts,created_at FROM electricity_orders "
                 "WHERE status IN ('pending','submitting') AND provider_request_id IS NOT NULL "
                 "AND next_check_at <= now() ORDER BY next_check_at "
                 "FOR UPDATE SKIP LOCKED LIMIT 1"
@@ -231,6 +231,14 @@ def claim_requery():
             order = cur.fetchone()
             if not order:
                 return None
+            if order["attempts"] >= 24:
+                # Do not turn unresolved vendor state into a refund. Escalate
+                # to an operator after bounded attempts; keep reserved funds.
+                cur.execute(
+                    "UPDATE electricity_orders SET status='manual_review',"
+                    "last_checked_at=now(),updated_at=now() WHERE id=%s", (order["id"],),
+                )
+                return {**order, "escalated": True}
             cur.execute(
                 "UPDATE electricity_orders SET next_check_at=now()+interval '5 minutes',"
                 "last_checked_at=now(),attempts=attempts+1,updated_at=now() WHERE id=%s", (order["id"],),
@@ -410,6 +418,8 @@ def process_once():
         return {"operation": "vend", "order_id": str(item["id"]), "status": status}
     item = claim_requery()
     if item:
+        if item.get("escalated"):
+            return {"operation": "escalated", "order_id": str(item["id"]), "status": "manual_review"}
         try:
             reply = vtpass.requery(item["provider_request_id"])
             status = apply_result(item["id"], reply, from_requery=True)
