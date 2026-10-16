@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { font-family: Inter, system-ui, sans-serif; color: #1d2b42; background:#f3f6fc; font-synthesis:none; }
+* { box-sizing:border-box; }
+body { margin:0; min-width:320px; }
+button, input, select { font: inherit; }
+button { cursor:pointer; }
+button:disabled { cursor:not-allowed; opacity:.56; }
+:focus-visible { outline:3px solid #63a7ff; outline-offset:3px; }
+.surface { @apply bg-white border border-slate-200/80 rounded-2xl shadow-sm; }
+.muted { @apply text-slate-500; }
+.section-title { @apply font-bold text-xl tracking-tight mb-4; }
+.btn { @apply w-full min-h-12 px-5 py-3 rounded-xl font-bold text-sm flex gap-2 items-center justify-center transition-colors; }
+.btn-primary { @apply bg-brand-700 text-white hover:bg-brand-900; }
+.btn-secondary { @apply bg-white text-brand-900 border border-slate-200 hover:bg-blue-50; }
+.field { @apply block text-sm font-semibold text-slate-700; }
+.field input, .field select { @apply block w-full mt-2 py-3 px-3.5 rounded-xl border border-slate-300 bg-white outline-none focus:ring-2 focus:ring-blue-300 focus:border-brand-600; }
+.error { @apply bg-red-50 text-red-800 border border-red-200 rounded-xl text-sm p-3; }
+.success { @apply bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-sm p-3; }
+.chip { @apply inline-block rounded-full px-3 py-1 bg-amber-50 text-amber-800 text-xs font-semibold; }
+.chip-green { @apply bg-emerald-50 text-emerald-800; }
+.sidebar { @apply fixed top-0 left-0 z-30 h-screen w-64 p-6 bg-white border-r border-slate-200 flex-col; }
+@media (max-width: 1023px) {
+ .sidebar { top:64px; width:100%; height:calc(100vh - 64px); }
+}
+.nav-btn { @apply w-full flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-slate-600 font-semibold hover:bg-blue-50 transition-colors text-left; }
+.nav-active { @apply bg-blue-50 text-brand-700; }
+.service { @apply bg-white border border-slate-200 rounded-2xl flex items-center justify-between gap-3 p-5 text-left font-bold text-sm hover:border-blue-300 hover:shadow-sm; }
