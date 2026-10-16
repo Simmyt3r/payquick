@@ -151,7 +151,7 @@ def buy_vtu(*, request_id, category, service_id, beneficiary, phone, amount_kobo
             "billersCode": beneficiary, "variation_code": variation_code,
             "phone": phone, "amount": amount_kobo // 100,
         }
-        if category == "tv":
+        if category == "tv" and service_id in ("dstv", "gotv"):
             payload["subscription_type"] = "change"
             payload["quantity"] = 1
     return vtpass._post("pay", payload)
