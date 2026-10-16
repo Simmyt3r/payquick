@@ -52,3 +52,19 @@ The connected Vercel account did not show a Payquick-named project; connected Ai
 Next deployment requires an isolated new PostgreSQL database and migrations 0001 through 0005, separately deployed Vercel backend/frontend, and a durable scheduled worker outside the request lifecycle. Provider secrets must remain server-side.
 
 **Production NO-GO:** Actual sandbox access, external merchant settlement evidence, licensed operating arrangements, rate limiting, MFA, monitoring and user support remain mandatory before live funds.
+
+
+## Manual GitHub Actions certification
+
+A manual-only workflow is provided in .github/workflows/payquick-provider-sandbox.yml. It never purchases electricity and never initializes payments.
+
+For a controlled certification environment after this workflow is safely merged into the default branch:
+
+1. Create a protected GitHub environment named sandbox-certification with required approvals.
+2. Add environment secrets VTPASS_SANDBOX_API_KEY, VTPASS_SANDBOX_SECRET_KEY, VTPASS_SANDBOX_PUBLIC_KEY (optional), and PAYSTACK_TEST_SECRET_KEY. The latter must begin sk_test_.
+3. In GitHub Actions, run the Payquick provider sandbox certification workflow and select vtpass, paystack or both.
+4. Review the redacted 7-day artifact and confirm that all expected sandbox results are genuine before updating any release gate.
+
+Note: GitHub normally requires a workflow_dispatch workflow to exist on the repository default branch before the Run workflow control appears. This branch is deliberately kept as a draft PR and must not be merged just to run a test. The equivalent local certification scripts can be used with private environment variables meanwhile.
+
+Do not put provider credentials, private API response bodies or full STS tokens into GitHub issues, commit histories or chat.
