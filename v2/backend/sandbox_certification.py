@@ -8,6 +8,7 @@ import argparse
 import hashlib
 import json
 import os
+import re
 from datetime import datetime, timezone
 
 import requests
@@ -83,7 +84,7 @@ def purchase_probe(*, amount_naira, phone, approved):
         raise ApiError(403, "Sandbox vending requires explicit CLI and environment approval")
     if type(amount_naira) is not int or not 2000 <= amount_naira <= 5000:
         raise ValueError("Sandbox probe amount must be whole naira between 2000 and 5000")
-    if not vtpass.valid_phone(phone) if hasattr(vtpass, "valid_phone") else not isinstance(phone, str):
+    if not isinstance(phone, str) or re.fullmatch(r"0[789][01]\d{8}", phone) is None:
         raise ValueError("Invalid sandbox phone")
     ref = vtpass.request_id()
     response = vtpass.buy_electricity(
