@@ -238,3 +238,24 @@ def test_missing_reference_on_requery_never_refunds(monkeypatch):
     assert vending.process_once()["status"] == "manual_review"
     assert client.get("/api/wallet", headers=headers).get_json()["balance_kobo"] == 0
     prove_ledgers_balanced()
+
+
+def test_persistent_uncertainty_escalates_without_refund(monkeypatch):
+    client = create_app().test_client()
+    headers, _, order_id = setup_order(client, monkeypatch)
+    monkeypatch.setattr(vtpass, "buy_electricity", lambda **kw: {"code": "099"})
+    assert vending.process_once()["status"] == "pending"
+    with connect() as conn:
+        with conn.transaction(), conn.cursor() as cur:
+            cur.execute(
+                "UPDATE electricity_orders SET attempts=24,next_check_at=now() WHERE id=%s",
+                (order_id,),
+            )
+    result = vending.process_once()
+    assert result["operation"] == "escalated"
+    assert result["status"] == "manual_review"
+    receipt = client.get(f"/api/electricity/orders/{order_id}", headers=headers).get_json()
+    assert receipt["status"] == "manual_review"
+    # A timeout, however prolonged, is not proof that a vending attempt failed.
+    assert client.get("/api/wallet", headers=headers).get_json()["balance_kobo"] == 0
+    prove_ledgers_balanced()
