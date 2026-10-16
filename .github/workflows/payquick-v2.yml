@@ -95,3 +95,10 @@ jobs:
           name: payquick-v2-debug-apk
           path: v2/frontend/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: Build unsigned Google Play release bundle
+        run: cd android && ./gradlew bundleRelease --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: payquick-v2-unsigned-play-aab
+          path: v2/frontend/android/app/build/outputs/bundle/release/app-release.aab
+          if-no-files-found: error
