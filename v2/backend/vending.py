@@ -25,6 +25,8 @@ def enabled():
     if os.getenv("PAYMENTS_ENABLED") != "true":
         raise ApiError(503, "Wallet transaction engine is not enabled")
     vtpass.environment()  # enforce additional live gate
+    if not os.getenv('VTPASS_API_KEY') or not os.getenv('VTPASS_SECRET_KEY'):
+        raise ApiError(503, 'VTpass vending credentials are not configured')
 
 
 def cipher():
@@ -123,7 +125,7 @@ def create_order(user_id, data):
         raise ApiError(400, "An idempotency key of 16–96 safe characters is required")
     if not valid_phone(phone):
         raise ApiError(400, "Enter a valid Nigerian recipient number")
-    if not isinstance(password, str):
+    if not isinstance(password, str) or len(password) > 200:
         raise ApiError(401, "Password confirmation required")
 
     with connect() as conn:
@@ -290,7 +292,7 @@ def apply_result(order_id, response, *, from_requery):
                 apply_wallet_delta(
                     cur, user_id=order["user_id"], delta_kobo=order["total_kobo"],
                     reference="refund:" + str(order_id), kind="refund",
-                    contra_account=suspense,
+                    contra_account=suspense['id'],
                 )
                 cur.execute(
                     "UPDATE electricity_orders SET status='failed',provider_code=%s,"
