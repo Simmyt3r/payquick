@@ -11,6 +11,23 @@ on:
 jobs:
   api-tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: payquick_ci
+          POSTGRES_PASSWORD: payquick_ci
+          POSTGRES_DB: payquick_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U payquick_ci -d payquick_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      CI_TEST_DATABASE: "true"
+      DATABASE_URL: postgresql://payquick_ci:payquick_ci@localhost:5432/payquick_ci?sslmode=disable
     defaults:
       run:
         working-directory: v2/backend
@@ -21,6 +38,18 @@ jobs:
           python-version: '3.12'
       - run: pip install -r requirements.txt
       - run: python -m compileall -q .
+      - name: Apply isolated CI migrations
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          import psycopg
+          with psycopg.connect(os.environ["DATABASE_URL"], autocommit=True) as conn:
+              for path in sorted(Path("migrations").glob("*.sql")):
+                  with conn.cursor() as cur:
+                      cur.execute(path.read_text())
+                  print("Applied", path)
+          PY
       - run: pytest -q
         env:
           PAYMENTS_ENABLED: 'false'
