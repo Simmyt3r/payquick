@@ -292,7 +292,7 @@ def apply_result(order_id, response, *, from_requery):
                 apply_wallet_delta(
                     cur, user_id=order["user_id"], delta_kobo=order["total_kobo"],
                     reference="refund:" + str(order_id), kind="refund",
-                    contra_account=suspense['id'],
+                    contra_account=suspense,
                 )
                 cur.execute(
                     "UPDATE electricity_orders SET status='failed',provider_code=%s,"
