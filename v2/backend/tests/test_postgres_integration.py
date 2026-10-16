@@ -108,6 +108,10 @@ def setup_order(client, monkeypatch, *, expected_amount=2000):
     assert duplicate.status_code == 200
     assert duplicate.get_json()["order_id"] == order_id
     assert duplicate.get_json()["duplicate"] is True
+    # A reused quote with a different key is not a new payment opportunity.
+    different_key = {**payload, "idempotency_key": uuid.uuid4().hex}
+    rejected = client.post("/api/electricity/orders", headers=headers, json=different_key)
+    assert rejected.status_code == 409, rejected.get_json()
     assert client.get("/api/wallet", headers=headers).get_json()["balance_kobo"] == 0
     return headers, user_id, order_id
 
