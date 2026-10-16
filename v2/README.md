@@ -15,13 +15,13 @@ The original React Native/Expo/Firebase application remains unchanged in the rep
 
 ## Not implemented yet
 
-Live VTPass provider certification, meter auto-load transports, **external provider/merchant settlement reconciliation** (internal read-only audit is implemented), admin panel, strong MFA, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.**
+Live VTPass provider certification, meter auto-load transports, **external provider/merchant settlement reconciliation** (internal read-only audit and operator-only API are implemented), full admin panel, strong MFA, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.**
 
 ## Backend setup
 
 1. Provision a **new** PostgreSQL database on Aiven. Do not run the migration on the legacy Firebase data or an unrelated database.
 2. In the backend directory, configure variables from .env.example, including TLS-enforced DATABASE_URL, a random JWT_SECRET of at least 48 characters and FRONTEND_ORIGINS.
-3. Run SQL migrations 0001_initial.sql, 0002_electricity_vending.sql, and 0003_ledger_integrity.sql in order using a privileged migration role. Use separate least-privileged credentials for runtime.
+3. Run SQL migrations 0001_initial.sql, 0002_electricity_vending.sql, 0003_ledger_integrity.sql, and 0004_operator_access.sql in order using a privileged migration role. Use separate least-privileged credentials for runtime.
 4. Install Python 3.12 dependencies from requirements.txt and run Flask from v2/backend with: flask --app app run --port 5000
 5. Check GET /api/health and run pytest -q.
 
@@ -58,7 +58,7 @@ Vercel does not create the Aiven database or perform financial reconciliation au
 
 1. Run the VTpass sandbox pilot and PostgreSQL tests. See docs/ELECTRICITY_VENDING.md; do not enable live vending.
 2. Certify VTpass vending and requery flows against a real provider sandbox; the outbox/one-dispatch implementation is already in source.
-3. Build external settlement reconciliation and a restricted operations dashboard. Run `python reconciliation.py` for internal ledger and suspense mismatch checks.
+3. Build external settlement reconciliation and a complete administrative workflow. Run `python reconciliation.py` for internal ledger/suspense checks, or GET `/api/operator/reconciliation` as a database-authorized operator. Operator roles are granted only by privileged migration/DB action.
 4. Pilot a fully authorized remote meter-loading adapter.
 5. Add PQ-AI only after the transaction APIs are tested and secure.
 
