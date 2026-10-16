@@ -5,8 +5,9 @@ import {
   Zap, Menu, X, Mic, Info, Wallet as WalletIcon,
 } from 'lucide-react';
 import { api, money, type Meter, type Quote, type Session, type WalletInfo } from './api';
+import StandardVtu from './StandardVtu';
 
-type Section = 'overview' | 'meters' | 'wallet' | 'activity';
+type Section = 'overview' | 'meters' | 'wallet' | 'activity' | 'vtu';
 const discos = [
   ['ikeja-electric', 'Ikeja Electric'], ['eko-electric', 'Eko Electric'],
   ['abuja-electric', 'Abuja Electric'], ['ibadan-electric', 'Ibadan Electric'],
@@ -213,6 +214,7 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   const links: { key: Section; name: string; icon: typeof Home }[] = [
     { key: 'overview', name: 'Overview', icon: Home },
     { key: 'meters', name: 'My meters', icon: Zap },
+    { key: 'vtu', name: 'Airtime, data & TV', icon: Smartphone },
     { key: 'wallet', name: 'Wallet', icon: WalletIcon },
     { key: 'activity', name: 'Activity', icon: History },
   ];
@@ -237,7 +239,7 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
     <main className="lg:ml-64 p-5 sm:p-8 lg:p-10 max-w-6xl">
       <header className="flex flex-wrap items-center gap-3 justify-between mb-7">
         <div><p className="text-sm font-semibold text-brand-600">PAYQUICK 2.0</p>
-          <h1 className="text-3xl font-extrabold tracking-tight">{({ overview: 'Welcome back', meters: 'Your meters', wallet: 'Your wallet', activity: 'Transaction activity' } as const)[section]}</h1>
+          <h1 className="text-3xl font-extrabold tracking-tight">{({ overview: 'Welcome back', meters: 'Your meters', wallet: 'Your wallet', activity: 'Transaction activity', vtu: 'Buy airtime, data or TV' } as const)[section]}</h1>
           <p className="muted text-sm mt-1">Hello, {session.user.name.split(' ')[0]}. Manage utilities with confidence.</p></div>
         <button onClick={() => void refresh()} className="btn btn-secondary w-auto" title="Refresh"><RefreshCcw size={17}/>Refresh</button>
       </header>
@@ -261,14 +263,16 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             <button onClick={() => navigate('meters')} className="service"><Zap className="text-brand-600"/>Prepaid electricity <ArrowRight size={17}/></button>
             <button onClick={() => navigate('wallet')} className="service"><CreditCard className="text-brand-600"/>Fund wallet <ArrowRight size={17}/></button>
-            <div className="service cursor-default opacity-65"><Smartphone className="text-brand-600"/>Airtime & data <span className="text-xs muted">Coming later</span></div>
+            <button onClick={() => navigate('vtu')} className="service"><Smartphone className="text-brand-600"/>Airtime, data & TV <ArrowRight size={17}/></button>
           </div></div>
         <div className="surface p-6 flex gap-4 items-start">
           <div className="rounded-xl bg-blue-50 p-3"><Mic size={24} className="text-brand-600"/></div>
           <div><h2 className="font-bold text-lg">PQ-AI is on the roadmap</h2>
-          <p className="muted mt-1 text-sm">A future voice and chat assistant for confirmed utility purchases. The AI cannot bypass payment authorization.</p></div>
+          <p className="muted mt-1 text-sm">PQ-AI will be optional. Ordinary electricity, airtime, data, TV and wallet forms always remain the primary fallback. AI cannot bypass payment authorization.</p></div>
         </div>
       </div>}
+
+      {section === 'vtu' && <StandardVtu token={token} onDone={() => void refresh()}/>}
 
       {section === 'meters' && <div className="grid lg:grid-cols-5 gap-6 items-start">
         <div className="lg:col-span-3 space-y-4">
