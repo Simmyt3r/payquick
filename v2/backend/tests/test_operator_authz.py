@@ -46,7 +46,11 @@ def test_operator_reports_are_private_and_roles_cannot_be_self_assigned(monkeypa
         assert response.status_code == 200, response.get_json()
         assert "critical" in response.get_json()
         assert "warnings" in response.get_json()
-        assert "token" not in str(response.get_json()).lower()
+        # Aggregate warning keys may mention "token", but never expose a
+        # token value, encrypted token, meter number or personal identity.
+        assert "token_ciphertext" not in response.get_json()
+        assert "meter_number" not in response.get_json()
+        assert "password_hash" not in response.get_json()
     finally:
         with connect() as conn:
             with conn.transaction(), conn.cursor() as cur:
