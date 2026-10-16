@@ -12,16 +12,21 @@ The original React Native/Expo/Firebase application remains unchanged in the rep
 - Provider meter verification, secure quotes, idempotent electricity-order reservations, a single-dispatch VTpass adapter, requery-only recovery, encrypted token receipts, customer order history and a separate worker (all purchase execution disabled by default).
 - React customer UI and a buildable PWA/Capacitor project.
 - GitHub Actions jobs for backend unit tests, web build and Android debug APK plus unsigned release AAB builds.
+- Separate read-only Paystack external funding/settlement statement reconciliation with bounded pagination, strict environment validation, and unmatched/incorrect payment reports.
+- Read-only VTpass external request-ID requery audit (no automatic financial adjustments).
+- VTpass and Paystack sandbox certification probes, with live modes prohibited or explicitly gated.
+- Partner-neutral, fail-closed prepaid meter remote-loading pilot protocol and signature-evidence requirements.
+
 
 ## Not implemented yet
 
-Live VTPass provider certification, meter auto-load transports, **external provider/merchant settlement reconciliation** (internal read-only audit and operator-only API are implemented), full admin panel, strong MFA, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.**
+Live VTPass provider certification, meter auto-load transports, **external provider/merchant settlement reconciliation** (internal read-only audit and operator-only API are implemented), full admin panel, strong MFA, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.** External reconciliation scripts require real provider account access for certification; only mocked automated integration tests have run.
 
 ## Backend setup
 
 1. Provision a **new** PostgreSQL database on Aiven. Do not run the migration on the legacy Firebase data or an unrelated database.
 2. In the backend directory, configure variables from .env.example, including TLS-enforced DATABASE_URL, a random JWT_SECRET of at least 48 characters and FRONTEND_ORIGINS.
-3. Run SQL migrations 0001_initial.sql, 0002_electricity_vending.sql, 0003_ledger_integrity.sql, and 0004_operator_access.sql in order using a privileged migration role. Use separate least-privileged credentials for runtime.
+3. Run SQL migrations 0001_initial.sql, 0002_electricity_vending.sql, 0003_ledger_integrity.sql, 0004_operator_access.sql, and 0005_meter_pilot.sql in order using a privileged migration role. Use separate least-privileged credentials for runtime.
 4. Install Python 3.12 dependencies from requirements.txt and run Flask from v2/backend with: flask --app app run --port 5000
 5. Check GET /api/health and run pytest -q.
 
@@ -62,4 +67,11 @@ Vercel does not create the Aiven database or perform financial reconciliation au
 4. Pilot a fully authorized remote meter-loading adapter.
 5. Add PQ-AI only after the transaction APIs are tested and secure.
 
-See docs/METER_AUTOMATION.md and docs/PQ_AI.md.
+See docs/PROVIDER_CERTIFICATION.md, docs/REMOTE_METER_PILOT.md, docs/METER_AUTOMATION.md and docs/PQ_AI.md.
+
+
+## Phase 3: provider certification (not yet complete)
+
+Read docs/PROVIDER_CERTIFICATION.md for sandbox-only test execution, provider keys, merchant statement comparisons, read-only auditing and known launch blockers. Neither Paystack nor VTpass merchant credentials are present in the repository. Discovery found no Payquick-specific Vercel project or Aiven database service on the connected accounts. No infrastructure provisioning or payment activity was performed.
+
+A real supported meter can only be piloted under the written utility/manufacturer arrangement defined in docs/REMOTE_METER_PILOT.md. The current remote-loading adapter deliberately fails closed rather than pretending an STS token was loaded.
