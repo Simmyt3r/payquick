@@ -58,3 +58,25 @@ def require_auth(fn):
             raise ApiError(401, "Invalid or expired session") from exc
         return fn(*args, **kwargs)
     return wrapped
+
+
+
+def require_operator(fn):
+    """Enforce an authoritative database role for aggregate financial review.
+
+    A JWT doesn't carry operator privilege. Revocation takes effect on the
+    next request. There is intentionally no user-facing role-grant endpoint.
+    """
+    from db import connect
+
+    @wraps(fn)
+    @require_auth
+    def wrapped(*args, **kwargs):
+        with connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT role FROM users WHERE id=%s", (g.user_id,))
+            user = cur.fetchone()
+        if not user or user["role"] != "operator":
+            raise ApiError(403, "Operator access required")
+        return fn(*args, **kwargs)
+
+    return wrapped
