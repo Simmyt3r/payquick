@@ -44,6 +44,12 @@ def calculate_report():
         """)
         unresolved_reservations = cur.fetchone()["n"]
         cur.execute("""
+            SELECT COALESCE(SUM(q.total_kobo),0) AS n
+            FROM vtu_orders o JOIN vtu_quotes q ON q.id=o.quote_id
+            WHERE o.status IN ('queued','submitting','pending','manual_review')
+        """)
+        unresolved_vtu = cur.fetchone()["n"]
+        cur.execute("""
             SELECT COUNT(*) AS n FROM electricity_orders
             WHERE status='delivered' AND token_ciphertext IS NULL
         """)
@@ -72,7 +78,7 @@ def calculate_report():
     critical = {
         "unbalanced_journals": unbalanced_journals,
         "wallet_balance_divergences": wallet_divergences,
-        "suspense_vs_unresolved_delta_kobo": suspense_balance - unresolved_reservations,
+        "suspense_vs_unresolved_delta_kobo": suspense_balance - unresolved_reservations - unresolved_vtu,
         "delivered_without_token": missing_tokens,
         "duplicate_provider_transaction_ids": duplicate_provider_ids,
         "credited_without_settlement_reference": invalid_credits,
@@ -84,7 +90,8 @@ def calculate_report():
         "critical": critical, "warnings": warnings,
         "metrics": {
             "suspense_balance_kobo": suspense_balance,
-            "unresolved_reservations_kobo": unresolved_reservations,
+            "unresolved_reservations_kobo": unresolved_reservations + unresolved_vtu,
+            "standard_vtu_reservations_kobo": unresolved_vtu,
         },
     }
 
