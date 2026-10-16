@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.env
+.env.local
+android/.gradle/
+android/.idea/
+android/build/
+android/app/build/
