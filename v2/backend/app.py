@@ -20,6 +20,7 @@ from ledger import apply_wallet_delta
 from meter import capability, validate_meter
 from paystack import initialize as paystack_initialize, verify as paystack_verify
 from security import new_token, password_hash, password_verify, require_auth
+from vending import prepare_quote, verify_saved_meter, create_order, describe_order
 
 
 def json_body():
@@ -234,35 +235,38 @@ def create_app():
             meter_id = str(cur.fetchone()["id"])
         return jsonify({"id": meter_id, "remote_loading": False, "status": "requires_provider_verification"}), 201
 
+    @app.post("/api/meters/<uuid:meter_id>/verify")
+    @require_auth
+    def verify_meter(meter_id):
+        return jsonify(verify_saved_meter(g.user_id, str(meter_id)))
+
     @app.post("/api/electricity/quotes")
     @require_auth
     def quote_electricity():
         body = json_body()
+        meter_id = body.get("meter_id")
+        try:
+            meter_id = str(uuid.UUID(meter_id))
+        except (TypeError, AttributeError, ValueError) as exc:
+            raise ApiError(400, "A valid saved meter ID is required") from exc
         amount = naira_to_kobo(body.get("amount_naira"), minimum=500)
-        with connect() as conn, conn.transaction(), conn.cursor() as cur:
-            cur.execute(
-                "SELECT id,disco,meter_number,remote_loading_verified FROM meter_profiles "
-                "WHERE id=%s AND user_id=%s AND meter_type='prepaid'",
-                (body.get("meter_id"), g.user_id),
-            )
-            meter = cur.fetchone()
-            if not meter:
-                raise ApiError(404, "Saved prepaid meter not found")
-            # Catalogue price and customer verification will become provider-driven.
-            cur.execute(
-                "INSERT INTO electricity_quotes(user_id,meter_id,amount_kobo,expires_at) "
-                "VALUES (%s,%s,%s,now()+ interval '10 minutes') RETURNING id,expires_at",
-                (g.user_id, meter["id"], amount),
-            )
-            quote = cur.fetchone()
-        return jsonify({
-            "quote_id": str(quote["id"]), "amount_kobo": amount,
-            "currency": "NGN", "meter_number": meter["meter_number"],
-            "disco": meter["disco"], "expires_at": quote["expires_at"].isoformat(),
-            "remote_loading_supported": bool(meter["remote_loading_verified"]),
-            "execution_enabled": False,
-            "message": "Quote only. Purchases and token loading are not yet enabled.",
-        }), 201
+        return jsonify(prepare_quote(g.user_id, meter_id, amount)), 201
+
+    @app.post("/api/electricity/orders")
+    @require_auth
+    def order_electricity():
+        body = json_body()
+        try:
+            body["quote_id"] = str(uuid.UUID(body.get("quote_id", "")))
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise ApiError(400, "A valid quote ID is required") from exc
+        order = create_order(g.user_id, body)
+        return jsonify(order), 200 if order.get("duplicate") else 201
+
+    @app.get("/api/electricity/orders/<uuid:order_id>")
+    @require_auth
+    def electricity_order_status(order_id):
+        return jsonify(describe_order(g.user_id, str(order_id)))
 
     return app
 
