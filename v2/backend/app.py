@@ -20,7 +20,7 @@ from ledger import apply_wallet_delta
 from meter import capability, validate_meter
 from paystack import initialize as paystack_initialize, verify as paystack_verify
 from security import new_token, password_hash, password_verify, require_auth
-from vending import prepare_quote, verify_saved_meter, create_order, describe_order
+from vending import prepare_quote, verify_saved_meter, create_order, describe_order, list_orders
 
 
 def json_body():
@@ -262,6 +262,11 @@ def create_app():
             raise ApiError(400, "A valid quote ID is required") from exc
         order = create_order(g.user_id, body)
         return jsonify(order), 200 if order.get("duplicate") else 201
+
+    @app.get("/api/electricity/orders")
+    @require_auth
+    def electricity_order_history():
+        return jsonify(list_orders(g.user_id))
 
     @app.get("/api/electricity/orders/<uuid:order_id>")
     @require_auth
