@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { api, money, type Meter, type Quote, type Session, type WalletInfo } from './api';
 import StandardVtu from './StandardVtu';
+import Landing from './Landing';
 
 type Section = 'overview' | 'meters' | 'wallet' | 'activity' | 'vtu';
 const discos = [
@@ -27,8 +28,12 @@ function Button({ children, type = 'button', disabled = false, onClick, secondar
   return <button type={type} disabled={disabled} onClick={onClick}
     className={'btn ' + (secondary ? 'btn-secondary' : 'btn-primary')}>{children}</button>;
 }
-function Auth({ onSuccess }: { onSuccess: (session: Session) => void }) {
-  const [register, setRegister] = useState(false);
+function Auth({ onSuccess, register, onModeChange, onBack }: {
+  onSuccess: (session: Session) => void;
+  register: boolean;
+  onModeChange: (register: boolean) => void;
+  onBack: () => void;
+}) {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,7 +52,7 @@ function Auth({ onSuccess }: { onSuccess: (session: Session) => void }) {
   }
   return <main className="min-h-screen bg-[#f3f6fc] flex flex-col lg:flex-row">
     <div className="bg-brand-700 text-white p-8 lg:p-14 lg:w-1/2 flex flex-col justify-between min-h-72">
-      <div className="flex gap-3 items-center font-black tracking-tight text-2xl"><Logo />Payquick</div>
+      <button type="button" onClick={onBack} className="flex gap-3 items-center font-black tracking-tight text-2xl text-left" aria-label="Return to Payquick homepage"><Logo />Payquick</button>
       <div className="max-w-lg py-16">
         <p className="text-blue-200 font-semibold text-sm uppercase tracking-[.2em] mb-4">Payquick 2.0</p>
         <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight leading-tight">Your bills. Your wallet. Less hassle.</h1>
@@ -65,7 +70,7 @@ function Auth({ onSuccess }: { onSuccess: (session: Session) => void }) {
         <label className="field">Password<input required type="password" autoComplete={register ? 'new-password' : 'current-password'} minLength={register ? 12 : undefined} value={password} onChange={e => setPassword(e.target.value)} placeholder={register ? '12 characters minimum' : 'Your password'} /></label>
         {error && <p role="alert" className="error">{error}</p>}
         <Button type="submit" disabled={busy}>{busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}<ArrowRight size={16} /></Button>
-        <p className="text-sm text-center muted">{register ? 'Already registered?' : 'New to Payquick?'} <button type="button" className="text-brand-700 font-bold" onClick={() => { setRegister(!register); setError(''); }}>{register ? 'Sign in' : 'Create account'}</button></p>
+        <p className="text-sm text-center muted">{register ? 'Already registered?' : 'New to Payquick?'} <button type="button" className="text-brand-700 font-bold" onClick={() => { onModeChange(!register); setError(''); }}>{register ? 'Sign in' : 'Create account'}</button></p>
         <p className="text-xs muted flex gap-2 items-start"><LockKeyhole size={15} className="shrink-0"/>Short-lived sessions are used while stronger device authentication is being developed.</p>
       </form>
     </div>
@@ -367,7 +372,46 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
     </main>
   </div>;
 }
+type AppRoute = '/' | '/login' | '/register' | '/app';
+
+function getInitialRoute(): AppRoute {
+  if (typeof window === 'undefined') return '/';
+  const route = window.location.pathname;
+  return route === '/login' || route === '/register' || route === '/app' ? route : '/';
+}
+
 export default function App() {
   const [session, setSession] = useState<Session | null>(null);
-  return session ? <Dashboard session={session} onLogout={() => setSession(null)}/> : <Auth onSuccess={setSession}/>;
+  const [route, setRoute] = useState<AppRoute>(getInitialRoute);
+  const navigate = useCallback((next: AppRoute) => {
+    if (window.location.pathname !== next) window.history.pushState({}, '', next);
+    setRoute(next);
+    window.scrollTo({ top: 0, behavior: 'instant' });
+  }, []);
+
+  useEffect(() => {
+    const onBackOrForward = () => setRoute(getInitialRoute());
+    window.addEventListener('popstate', onBackOrForward);
+    return () => window.removeEventListener('popstate', onBackOrForward);
+  }, []);
+
+  if (route === '/') {
+    return <Landing onSignIn={() => navigate('/login')} onGetStarted={() => navigate('/register')}/>;
+  }
+  if (route === '/app' && session) {
+    return <Dashboard session={session} onLogout={() => {
+      setSession(null);
+      navigate('/login');
+    }}/>;
+  }
+  return <Auth
+    key={route === '/register' ? 'register' : 'login'}
+    register={route === '/register'}
+    onModeChange={wantsRegister => navigate(wantsRegister ? '/register' : '/login')}
+    onBack={() => navigate('/')}
+    onSuccess={newSession => {
+      setSession(newSession);
+      navigate('/app');
+    }}
+  />;
 }
