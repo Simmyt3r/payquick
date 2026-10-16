@@ -318,6 +318,25 @@ def mark_uncertain(order_id):
             )
 
 
+def list_orders(user_id):
+    """Customer-specific order summaries. Tokens are returned only on detail lookup."""
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT o.id,o.status,o.amount_kobo,o.total_kobo,o.created_at,"
+            "m.nickname,m.meter_number,m.disco FROM electricity_orders o "
+            "JOIN meter_profiles m ON m.id=o.meter_id "
+            "WHERE o.user_id=%s ORDER BY o.created_at DESC LIMIT 50",
+            (user_id,),
+        )
+        rows = cur.fetchall()
+    return {"orders": [{
+        "id": str(r["id"]), "status": r["status"], "amount_kobo": r["amount_kobo"],
+        "total_kobo": r["total_kobo"], "meter_nickname": r["nickname"],
+        "meter_number": r["meter_number"], "disco": r["disco"],
+        "created_at": r["created_at"].isoformat(),
+    } for r in rows]}
+
+
 def describe_order(user_id, order_id):
     with connect() as conn, conn.cursor() as cur:
         cur.execute(
