@@ -386,7 +386,7 @@ export default function App() {
   const navigate = useCallback((next: AppRoute) => {
     if (window.location.pathname !== next) window.history.pushState({}, '', next);
     setRoute(next);
-    window.scrollTo({ top: 0, behavior: 'instant' });
+    window.scrollTo({ top: 0, behavior: 'auto' });
   }, []);
 
   useEffect(() => {
