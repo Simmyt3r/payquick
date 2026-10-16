@@ -1,8 +1,9 @@
 import { useState } from 'react';
+import './Landing.css';
 import {
-  ArrowRight, CheckCircle2, ChevronDown, CreditCard, Headphones,
+  ArrowRight, CheckCircle2, ChevronDown, CreditCard,
   LockKeyhole, Menu, ReceiptText, ShieldCheck, Smartphone, Sparkles,
-  Wallet, X, Zap, Wifi, Tv, Clock3, ArrowUpRight, Fingerprint,
+  Wallet, X, Zap, Wifi, Tv, Clock3, ArrowUpRight,
 } from 'lucide-react';
 
 type Props = {
