@@ -79,7 +79,7 @@ def _dates(from_date, to_date):
         raise ValueError("Dates must be YYYY-MM-DD") from exc
     if end < start or end - start > timedelta(days=7):
         raise ValueError("A statement window must be 1 to 8 calendar days")
-    if end >= datetime.now(timezone.utc):
+    if end.date() >= datetime.now(timezone.utc).date():
         raise ValueError("Use completed historical dates, not today or future")
     return start, end + timedelta(days=1)
 
