@@ -167,6 +167,11 @@ def create_order(user_id, data):
                 raise ApiError(409, "Meter customer details have changed")
             if not quote["total_kobo"] or quote["total_kobo"] < quote["amount_kobo"]:
                 raise ApiError(409, "Quote requires an authoritative total")
+            # The quote row is locked, serializing concurrent submissions with
+            # different idempotency keys. Return a meaningful 409, not a 500.
+            cur.execute("SELECT id FROM electricity_orders WHERE quote_id=%s", (quote_id,))
+            if cur.fetchone():
+                raise ApiError(409, "This quote has already been used; check order history")
             cur.execute(
                 "INSERT INTO electricity_orders(user_id,meter_id,quote_id,idempotency_key,"
                 "amount_kobo,total_kobo,phone) VALUES (%s,%s,%s,%s,%s,%s,%s) RETURNING id",
