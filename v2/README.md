@@ -84,3 +84,7 @@ Payquick's ordinary airtime, data and TV purchase flows work without PQ-AI, voic
 Switches are independent: `VTU_VENDING_ENABLED=false` is the conventional VTU execution gate; `ELECTRICITY_VENDING_ENABLED=false` controls prepaid electricity execution; `REMOTE_METER_LOADING_ENABLED=false` disables physical auto-loading. All remain disabled until real sandbox and settlement checks have passed. `PAYMENTS_ENABLED=false` also controls funding and wallet payments. Fetching current data/TV plan variations requires `VTPASS_PUBLIC_KEY`.
 
 See [standard VTU fallback](docs/STANDARD_VTU_FALLBACK.md). No customer fund movement or actual third-party billing was tested by this change.
+
+## Public landing page (no variables required)
+
+The default `/` route is now a standalone, fully responsive public homepage. It does not read payment variables, call the backend or require an account. The `Sign in` and `Get started` buttons lead to `/login` and `/register`; the authenticated workspace lives at `/app`. Explicit Vercel route rewrites support direct entry and refresh. The page uses bundled styles and CSS-based previews without external images or fonts. Run `npm run test:landing` without environment variables. See [Public Landing](docs/PUBLIC_LANDING.md).
