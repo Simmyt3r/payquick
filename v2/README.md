@@ -10,6 +10,7 @@ The original React Native/Expo/Firebase application remains unchanged in the rep
 - Read-only wallet balance and a PostgreSQL double-entry transaction journal.
 - Paystack checkout initialization and a signed, independently verified funding webhook, **disabled by default**.
 - Provider meter verification, secure quotes, idempotent electricity-order reservations, a single-dispatch VTpass adapter, requery-only recovery, encrypted token receipts, customer order history and a separate worker (all purchase execution disabled by default).
+- Traditional airtime, data and cable TV forms with provider-priced plans, verified customer details, server-side checkout and order receipts. Manual electricity-token fallback remains available independently of PQ-AI/remote meter loading.
 - React customer UI and a buildable PWA/Capacitor project.
 - GitHub Actions jobs for backend unit tests, web build and Android debug APK plus unsigned release AAB builds.
 - Separate read-only Paystack external funding/settlement statement reconciliation with bounded pagination, strict environment validation, and unmatched/incorrect payment reports.
@@ -26,7 +27,7 @@ Live VTPass provider certification, meter auto-load transports, **external provi
 
 1. Provision a **new** PostgreSQL database on Aiven. Do not run the migration on the legacy Firebase data or an unrelated database.
 2. In the backend directory, configure variables from .env.example, including TLS-enforced DATABASE_URL, a random JWT_SECRET of at least 48 characters and FRONTEND_ORIGINS.
-3. Run SQL migrations 0001_initial.sql, 0002_electricity_vending.sql, 0003_ledger_integrity.sql, 0004_operator_access.sql, and 0005_meter_pilot.sql in order using a privileged migration role. Use separate least-privileged credentials for runtime.
+3. Run SQL migrations 0001_initial.sql, 0002_electricity_vending.sql, 0003_ledger_integrity.sql, 0004_operator_access.sql, 0005_meter_pilot.sql and 0006_standard_vtu.sql in order using a privileged migration role. Use separate least-privileged credentials for runtime.
 4. Install Python 3.12 dependencies from requirements.txt and run Flask from v2/backend with: flask --app app run --port 5000
 5. Check GET /api/health and run pytest -q.
 
@@ -75,3 +76,11 @@ See docs/PROVIDER_CERTIFICATION.md, docs/REMOTE_METER_PILOT.md, docs/METER_AUTOM
 Read docs/PROVIDER_CERTIFICATION.md for sandbox-only test execution, provider keys, merchant statement comparisons, read-only auditing and known launch blockers. Neither Paystack nor VTpass merchant credentials are present in the repository. Discovery found no Payquick-specific Vercel project or Aiven database service on the connected accounts. No infrastructure provisioning or payment activity was performed.
 
 A real supported meter can only be piloted under the written utility/manufacturer arrangement defined in docs/REMOTE_METER_PILOT.md. The current remote-loading adapter deliberately fails closed rather than pretending an STS token was loaded.
+
+## Standard VTU (default customer experience)
+
+Payquick's ordinary airtime, data and TV purchase flows work without PQ-AI, voice commands, auto-recharge or smart meter infrastructure. Customers can use standard form-based purchases, account-verified TV bouquets, prepaid electricity with real manual STS token delivery, hosted wallet funding, transaction history and receipts. Provider failures retain the original reference for requery, not a second purchase.
+
+Switches are independent: `VTU_VENDING_ENABLED=false` is the conventional VTU execution gate; `ELECTRICITY_VENDING_ENABLED=false` controls prepaid electricity execution; `REMOTE_METER_LOADING_ENABLED=false` disables physical auto-loading. All remain disabled until real sandbox and settlement checks have passed. `PAYMENTS_ENABLED=false` also controls funding and wallet payments. Fetching current data/TV plan variations requires `VTPASS_PUBLIC_KEY`.
+
+See [standard VTU fallback](docs/STANDARD_VTU_FALLBACK.md). No customer fund movement or actual third-party billing was tested by this change.
