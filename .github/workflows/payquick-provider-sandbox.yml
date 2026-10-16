@@ -1,0 +1,60 @@
+name: Payquick provider sandbox certification
+
+# Manual-only: never runs on push, never initiates payment.
+on:
+  workflow_dispatch:
+    inputs:
+      provider:
+        description: "Read-only provider sandbox verification"
+        type: choice
+        required: true
+        options:
+          - both
+          - vtpass
+          - paystack
+        default: both
+
+permissions:
+  contents: read
+
+jobs:
+  certification:
+    runs-on: ubuntu-latest
+    environment: sandbox-certification
+    defaults:
+      run:
+        working-directory: v2/backend
+    env:
+      VTPASS_ENV: sandbox
+      VTPASS_API_KEY: ${{ secrets.VTPASS_SANDBOX_API_KEY }}
+      VTPASS_SECRET_KEY: ${{ secrets.VTPASS_SANDBOX_SECRET_KEY }}
+      VTPASS_PUBLIC_KEY: ${{ secrets.VTPASS_SANDBOX_PUBLIC_KEY }}
+      VTPASS_LIVE_ENABLED: 'false'
+      VTPASS_SANDBOX_SPEND_APPROVED: 'false'
+      PAYSTACK_MODE: test
+      PAYSTACK_SECRET_KEY: ${{ secrets.PAYSTACK_TEST_SECRET_KEY }}
+      PAYSTACK_LIVE_READ_ENABLED: 'false'
+      PAYMENTS_ENABLED: 'false'
+      ELECTRICITY_VENDING_ENABLED: 'false'
+      REMOTE_METER_LOADING_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - name: Verify VTpass sandbox meter without vending
+        if: ${{ inputs.provider == 'vtpass' || inputs.provider == 'both' }}
+        run: python sandbox_certification.py --probe verify > "$RUNNER_TEMP/vtpass-certification.json"
+      - name: Verify Paystack test credentials without charging
+        if: ${{ inputs.provider == 'paystack' || inputs.provider == 'both' }}
+        run: python paystack_certification.py > "$RUNNER_TEMP/paystack-certification.json"
+      - name: Publish redacted evidence files
+        uses: actions/upload-artifact@v4
+        with:
+          name: provider-sandbox-readonly-evidence
+          path: |
+            ${{ runner.temp }}/vtpass-certification.json
+            ${{ runner.temp }}/paystack-certification.json
+          if-no-files-found: error
+          retention-days: 7
