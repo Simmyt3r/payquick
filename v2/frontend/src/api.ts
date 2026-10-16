@@ -7,7 +7,7 @@ export type Meter = {
   capability: { remote_loading: boolean; load_mode: 'remote' | 'manual'; status: string };
 };
 export type Quote = {
-  quote_id: string; amount_kobo: number; meter_number: string; disco: string;
+  quote_id: string; amount_kobo: number; total_kobo: number; verified_customer_name: string; service_band: string; meter_number: string; disco: string;
   remote_loading_supported: boolean; execution_enabled: boolean; message: string;
 };
 
