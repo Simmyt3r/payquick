@@ -70,14 +70,17 @@ function Auth({ onSuccess }: { onSuccess: (session: Session) => void }) {
     </div>
   </main>;
 }
-function MeterCard({ meter, onQuote }: { meter: Meter; onQuote: (meter: Meter) => void }) {
+function MeterCard({ meter, onQuote, onVerify, busy }: { meter: Meter; onQuote: (meter: Meter) => void; onVerify: (meter: Meter) => void; busy: boolean }) {
   return <div className="surface p-5 flex flex-col justify-between gap-4">
     <div className="flex gap-3 items-start"><div className="rounded-xl bg-blue-50 p-3 text-brand-600"><Zap size={20}/></div>
       <div className="min-w-0 flex-1"><p className="font-bold text-lg">{meter.nickname}</p><p className="text-sm muted truncate">{meter.disco}</p></div></div>
     <div className="text-sm"><p className="muted">Meter number</p><p className="font-mono font-semibold text-base">{meter.meter_number}</p></div>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <span className={meter.capability.remote_loading ? 'chip chip-green' : 'chip'}>{meter.capability.remote_loading ? 'Remote verified' : 'Manual token entry'}</span>
-      {meter.meter_type === 'prepaid' && <button type="button" onClick={() => onQuote(meter)} className="text-brand-700 font-bold text-sm hover:underline flex gap-1 items-center">Get quote <ArrowRight size={15}/></button>}
+      {meter.meter_type === 'prepaid' && <div className="flex flex-wrap gap-3">
+        <button type="button" disabled={busy} onClick={() => onVerify(meter)} className="text-brand-700 font-bold text-sm hover:underline">Verify meter</button>
+        <button type="button" onClick={() => onQuote(meter)} className="text-brand-700 font-bold text-sm hover:underline flex gap-1 items-center">Get quote <ArrowRight size={15}/></button>
+      </div>}
     </div>
   </div>;
 }
@@ -94,6 +97,11 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   const [amount, setAmount] = useState('2000');
   const [quote, setQuote] = useState<Quote | null>(null);
   const [fundAmount, setFundAmount] = useState('5000');
+  const [recipientPhone, setRecipientPhone] = useState('');
+  const [confirmationPassword, setConfirmationPassword] = useState('');
+  const [orderKey, setOrderKey] = useState('');
+  const [currentOrder, setCurrentOrder] = useState<{ order_id: string; status: string } | null>(null);
+  const [receipt, setReceipt] = useState<{ status: string; token: string | null; message: string } | null>(null);
   const token = session.access_token;
   const refresh = useCallback(async () => {
     try {
@@ -118,6 +126,17 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
     } catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
   }
+  async function verifyMeter(meter: Meter) {
+    setBusy(true); setError(''); setNotice('');
+    try {
+      const result = await api<{ customer_name: string; minimum_kobo: number }>(
+        '/meters/' + meter.id + '/verify', { method: 'POST', token, body: {} },
+      );
+      setQuote(null); setSelectedMeter(meter);
+      setNotice('Meter verified for ' + result.customer_name + '. Minimum purchase: ' + money(result.minimum_kobo));
+    } catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
+  }
   async function getQuote(e: FormEvent) {
     e.preventDefault(); if (!selectedMeter) return;
     setBusy(true); setError(''); setQuote(null);
@@ -126,7 +145,37 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
         method: 'POST', token,
         body: { meter_id: selectedMeter.id, amount_naira: Number(amount) },
       });
-      setQuote(result);
+      setQuote(result); setOrderKey(crypto.randomUUID()); setCurrentOrder(null); setReceipt(null);
+    } catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
+  }
+  async function orderElectricity() {
+    if (!quote?.execution_enabled || !orderKey) return;
+    if (!window.confirm('Authorize purchase of ' + money(quote.total_kobo ?? quote.amount_kobo)
+       + ' for meter ' + quote.meter_number + '? This reserves funds from your wallet.')) return;
+    setBusy(true); setError('');
+    try {
+      const order = await api<{ order_id: string; status: string }>(
+        '/electricity/orders', { method: 'POST', token, body: {
+          quote_id: quote.quote_id, idempotency_key: orderKey, phone: recipientPhone,
+          confirmation_password: confirmationPassword,
+        }},
+      );
+      setCurrentOrder(order);
+      setNotice('Purchase queued. Do not submit another purchase while status is pending.');
+      setConfirmationPassword('');
+      await refresh();
+    } catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
+  }
+  async function refreshOrder() {
+    if (!currentOrder) return;
+    setBusy(true); setError('');
+    try {
+      const response = await api<{ status: string; token: string | null; message: string }>(
+        '/electricity/orders/' + currentOrder.order_id, { token },
+      );
+      setReceipt(response);
     } catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
   }
@@ -206,7 +255,9 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
         <div className="lg:col-span-3 space-y-4">
           <h2 className="section-title">Saved meters</h2>
           {meters.length === 0 ? <div className="surface text-center p-10"><Zap size={32} className="mx-auto text-brand-600 mb-3"/><p className="font-bold">No meters added yet</p><p className="muted text-sm mt-2">Save a prepaid meter to request a purchase quote.</p></div> :
-            meters.map(meter => <MeterCard key={meter.id} meter={meter} onQuote={m => { setSelectedMeter(m); setQuote(null); }}/>)}
+            meters.map(meter => <MeterCard key={meter.id} meter={meter} busy={busy}
+                onVerify={m => void verifyMeter(m)}
+                onQuote={m => { setSelectedMeter(m); setQuote(null); setCurrentOrder(null); setReceipt(null); }}/>)}
           {selectedMeter && <form onSubmit={getQuote} className="surface p-6 space-y-4">
             <div className="flex items-center justify-between"><h3 className="font-bold">Electricity quote</h3><button type="button" onClick={() => setSelectedMeter(null)} aria-label="Close"><X size={18}/></button></div>
             <p className="text-sm muted">{selectedMeter.nickname} · {selectedMeter.meter_number}</p>
@@ -215,7 +266,27 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
             {quote && <div className="rounded-xl bg-blue-50 p-4 text-sm space-y-2">
               <p className="font-bold text-xl">{money(quote.amount_kobo)}</p>
               <p>Loading: {quote.remote_loading_supported ? 'Verified remote-capable' : 'Manual token fallback'}</p>
+              {'verified_customer_name' in quote && <p className="font-medium">Customer: {String(quote.verified_customer_name)}</p>}
               <p className="text-amber-800 font-semibold">{quote.message}</p>
+            </div>}
+            {quote?.execution_enabled && !currentOrder && <div className="space-y-3 rounded-xl border p-4">
+              <p className="font-bold">Authorize electricity purchase</p>
+              <label className="field">Recipient mobile<input type="tel" value={recipientPhone}
+                placeholder="08012345678" onChange={e => setRecipientPhone(e.target.value)}/></label>
+              <label className="field">Confirm with account password<input type="password" value={confirmationPassword}
+                autoComplete="off" onChange={e => setConfirmationPassword(e.target.value)}/></label>
+              <Button disabled={busy || !/^0[789][01]\d{8}$/.test(recipientPhone) || confirmationPassword.length < 12}
+                onClick={() => void orderElectricity()}>Confirm and reserve funds</Button>
+            </div>}
+            {currentOrder && <div className="space-y-3 p-4 rounded-xl border">
+              <p className="font-bold">Order: {currentOrder.order_id.slice(0,8)}</p>
+              <p className="text-sm">Initial status: {currentOrder.status}</p>
+              <Button secondary disabled={busy} onClick={() => void refreshOrder()}><RefreshCcw size={17}/>Check provider status</Button>
+              {receipt && <div className="text-sm space-y-2">
+                <p>Latest status: <b>{receipt.status}</b></p>
+                {receipt.token && <p className="font-mono font-bold tracking-wide break-all">Token: {receipt.token}</p>}
+                <p className="muted">{receipt.message}</p>
+              </div>}
             </div>}
           </form>}
         </div>
