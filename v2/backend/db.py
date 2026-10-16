@@ -9,6 +9,7 @@ def connect():
     if not url:
         raise RuntimeError("DATABASE_URL is not configured")
     # TLS should be specified in the Aiven DATABASE_URL (?sslmode=require or stronger).
-    if "sslmode=" not in url:
+    secure = "sslmode=require" in url or "sslmode=verify-full" in url
+    if not secure and os.getenv("CI_TEST_DATABASE") != "true":
         raise RuntimeError("DATABASE_URL must specify sslmode=require or verify-full")
     return psycopg.connect(url, row_factory=dict_row, connect_timeout=8)
