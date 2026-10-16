@@ -21,6 +21,8 @@ from meter import capability, validate_meter
 from paystack import initialize as paystack_initialize, verify as paystack_verify
 from security import new_token, password_hash, password_verify, require_auth, require_operator
 from vending import prepare_quote, verify_saved_meter, create_order, describe_order, list_orders
+import vtu_provider
+import vtu_service
 
 
 def json_body():
@@ -272,6 +274,42 @@ def create_app():
     @require_auth
     def electricity_order_status(order_id):
         return jsonify(describe_order(g.user_id, str(order_id)))
+
+    @app.get("/api/vtu/catalog")
+    @require_auth
+    def vtu_catalog():
+        return jsonify(vtu_provider.catalog())
+
+    @app.get("/api/vtu/plans/<category>/<service_id>")
+    @require_auth
+    def vtu_plans(category,service_id):
+        return jsonify(vtu_provider.variations(category,service_id))
+
+    @app.post("/api/vtu/quotes")
+    @require_auth
+    def vtu_quote():
+        return jsonify(vtu_service.make_quote(g.user_id,json_body())),201
+
+    @app.post("/api/vtu/orders")
+    @require_auth
+    def vtu_order():
+        body=json_body()
+        try:
+            body["quote_id"]=str(uuid.UUID(body.get("quote_id","")))
+        except (TypeError,ValueError,AttributeError) as exc:
+            raise ApiError(400,"Valid quote ID required") from exc
+        result=vtu_service.make_order(g.user_id,body)
+        return jsonify(result),200 if result.get("duplicate") else 201
+
+    @app.get("/api/vtu/orders")
+    @require_auth
+    def vtu_history():
+        return jsonify(vtu_service.list_orders(g.user_id))
+
+    @app.get("/api/vtu/orders/<uuid:order_id>")
+    @require_auth
+    def vtu_status(order_id):
+        return jsonify(vtu_service.receipt(g.user_id,str(order_id)))
 
     @app.get("/api/operator/reconciliation")
     @require_operator
