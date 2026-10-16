@@ -9,10 +9,11 @@
 3. Within 15 minutes of successful verification, the customer creates an electricity quote via POST /api/electricity/quotes with {meter_id,amount_naira}. Quotes expire in 10 minutes and use integer kobo. IBEDC Band A minimum is ₦5,000; other IBEDC bands ₦2,000, subject to the provider's returned minimum.
 4. POST /api/electricity/orders accepts {quote_id,idempotency_key,phone,confirmation_password} and requires separate operator feature gates. The backend reserves the exact quoted wallet total through a two-entry journal. A repeated idempotency key for that quote returns the original order, without another debit.
 5. A separately hosted \`python worker.py\` process claims one queued order, saves the VTpass request ID in the database *before* network dispatch, then sends POST /pay **once**.
-6. Only a confirmed VTpass delivered state settles the reserved money to the provider clearing account; a legitimate 20-digit token is encrypted at rest.
+6. VTpass `delivered` is accepted for settlement only when the request ID, meter number and electricity principal match the original order and a legitimate 20-digit token is available. Merchant commission or vendor `total_amount` is not confused with the vended amount.
 7. On timeout, pending, missing, malformed or confusing responses, Payquick does **not** resend /pay. It schedules POST /requery with the same ID.
-8. An explicitly negative *requery* refunds the reserved amount exactly once. Provider/request/meter mismatches go to manual_review, not automatic refund.
-9. GET /api/electricity/orders and GET /api/electricity/orders/<uuid> expose customer-owned history and receipts. A token returned by vending remains **manual entry**, not a remote-loaded meter confirmation.
+8. An explicitly negative *requery* with the original matching request ID refunds the reserved amount exactly once. Provider ID, meter and amount mismatches go to `manual_review`, not automatic refund. Missing token keeps an otherwise delivered order pending rather than manufacturing a successful receipt.
+9. Unresolved requests are requeried no more than 24 times before escalation to `manual_review`. Escalation preserves the reservation and demands a human settlement decision.
+10. GET /api/electricity/orders and GET /api/electricity/orders/<uuid> expose customer-owned history and receipts. A token returned by vending remains **manual entry**, not a remote-loaded meter confirmation.
 
 ### Transaction states
 
@@ -39,6 +40,15 @@ Configure the backend variables below. NEVER add real credentials to frontend co
 - PAYMENTS_ENABLED=false and ELECTRICITY_VENDING_ENABLED=false until the full security and reconciliation gate passes.
 - VTPASS_LIVE_ENABLED=false. Live requires explicitly setting VTPASS_ENV=live and a separately approved gate.
 - REMOTE_METER_LOADING_ENABLED=false: this release has NO approved remote-loading adapter.
+
+### Read-only reconciliation
+
+`cd v2/backend && python reconciliation.py` performs a non-mutating inspection of ledger journal balance, wallet cache parity, suspense liabilities versus unresolved purchases, absent successful tokens, repeated provider transaction IDs, aged orders and unreferenced funding credits.
+
+- Exit code 0: no detected anomalies. Any warning/critical report returns exit code 1.
+- Findings **must not** trigger an automatic refund or ledger adjustment.
+- Outputs contain counts, aggregate kobo and statuses only, not token values or user identities.
+- This is internal accounting consistency. It **does not replace** independently matching VTpass/Paystack merchant statements or bank settlements.
 
 ### Run worker
 
