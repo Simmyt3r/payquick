@@ -9,19 +9,19 @@ The original React Native/Expo/Firebase application remains unchanged in the rep
 - Registration and login via Argon2 password hashes and short-lived JWT access tokens.
 - Read-only wallet balance and a PostgreSQL double-entry transaction journal.
 - Paystack checkout initialization and a signed, independently verified funding webhook, **disabled by default**.
-- Meter registration, explicit capability status and quote preparation.
+- Provider meter verification, secure quotes, idempotent electricity-order reservations, a single-dispatch VTpass adapter, requery-only recovery, encrypted token receipts, customer order history and a separate worker (all purchase execution disabled by default).
 - React customer UI and a buildable PWA/Capacitor project.
 - GitHub Actions jobs for backend unit tests, web build and Android debug APK build.
 
 ## Not implemented yet
 
-VTPass purchase execution, meter auto-load transports, provider customer validation, refunds/reconciliation, admin panel, transaction history API, MFA/PIN, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.**
+Live VTPass provider certification, meter auto-load transports, payment settlement reconciliation, admin panel, strong MFA, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.**
 
 ## Backend setup
 
 1. Provision a **new** PostgreSQL database on Aiven. Do not run the migration on the legacy Firebase data or an unrelated database.
 2. In the backend directory, configure variables from .env.example, including TLS-enforced DATABASE_URL, a random JWT_SECRET of at least 48 characters and FRONTEND_ORIGINS.
-3. Run migration 0001_initial.sql using a privileged migration role; use separate least-privileged credentials for runtime.
+3. Run SQL migrations 0001_initial.sql, 0002_electricity_vending.sql, and 0003_ledger_integrity.sql in order using a privileged migration role. Use separate least-privileged credentials for runtime.
 4. Install Python 3.12 dependencies from requirements.txt and run Flask from v2/backend with: flask --app app run --port 5000
 5. Check GET /api/health and run pytest -q.
 
@@ -56,7 +56,7 @@ Vercel does not create the Aiven database or perform financial reconciliation au
 
 ## Next development
 
-1. Harden registration, session lifecycle, rate limits and payment onboarding.
+1. Run the VTpass sandbox pilot and PostgreSQL tests. See docs/ELECTRICITY_VENDING.md; do not enable live vending.
 2. Build server-authoritative VTPass catalogue and vending with an idempotent outbox and status requery.
 3. Add customer receipts, financial reconciliation and administrative controls.
 4. Pilot a fully authorized remote meter-loading adapter.
