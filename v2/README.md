@@ -88,3 +88,7 @@ See [standard VTU fallback](docs/STANDARD_VTU_FALLBACK.md). No customer fund mov
 ## Public landing page (no variables required)
 
 The default `/` route is now a standalone, fully responsive public homepage. It does not read payment variables, call the backend or require an account. The `Sign in` and `Get started` buttons lead to `/login` and `/register`; the authenticated workspace lives at `/app`. Explicit Vercel route rewrites support direct entry and refresh. The page uses bundled styles and CSS-based previews without external images or fonts. Run `npm run test:landing` without environment variables. See [Public Landing](docs/PUBLIC_LANDING.md).
+
+## Deployment status
+
+The public V2 frontend deployment is READY from the tested feature branch and its project/commit/links are recorded in [Deployment status](docs/DEPLOYMENT_STATUS.md). The `mdsilabs/payquick` fork is currently read-only through the connected GitHub integration, so it has **not** been synced or deployed. The original `main` branch is preserved.
