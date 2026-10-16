@@ -143,10 +143,10 @@ def test_pending_then_requery_delivers_once(monkeypatch):
     def fake_requery(ref):
         assert ref == pay_ids[0]
         return {
-            "code": "000", "requestId": ref,
+            "code": "000", "requestId": ref, "amount": 2000,
             "content": {"transactions": {
                 "status": "delivered", "unique_element": "1111111111111",
-                "transactionId": "provider-test-123",
+                "transactionId": "provider-test-123", "amount": "2000.00",
             }},
             "Token": "2821 4114 9170 6793 0943",
         }
@@ -179,4 +179,58 @@ def test_explicit_requery_failure_refunds_once(monkeypatch):
     assert client.get("/api/wallet", headers=headers).get_json()["balance_kobo"] == 200000
     assert vending.apply_result(order_id, {"code": "016"}, from_requery=True) == "failed"
     assert client.get("/api/wallet", headers=headers).get_json()["balance_kobo"] == 200000
+    prove_ledgers_balanced()
+
+
+def test_mismatched_vend_amount_held_for_review(monkeypatch):
+    client = create_app().test_client()
+    headers, user_id, order_id = setup_order(client, monkeypatch)
+    def incorrect_vend(**kw):
+        return {
+            "code": "000", "requestId": kw["request_id_value"], "amount": 1000,
+            "content": {"transactions": {
+                "status": "delivered", "unique_element": kw["meter_number"],
+                "amount": "1000",
+            }},
+            "Token": "2821 4114 9170 6793 0943",
+        }
+    monkeypatch.setattr(vtpass, "buy_electricity", incorrect_vend)
+    assert vending.process_once()["status"] == "manual_review"
+    receipt = client.get(f"/api/electricity/orders/{order_id}", headers=headers).get_json()
+    assert receipt["token"] is None
+    assert receipt["status"] == "manual_review"
+    assert client.get("/api/wallet", headers=headers).get_json()["balance_kobo"] == 0
+    prove_ledgers_balanced()
+
+
+def test_missing_token_stays_pending_without_false_delivery(monkeypatch):
+    client = create_app().test_client()
+    headers, user_id, order_id = setup_order(client, monkeypatch)
+    def delivered_without_token(**kw):
+        return {
+            "code": "000", "requestId": kw["request_id_value"], "amount": 2000,
+            "content": {"transactions": {
+                "status": "delivered", "unique_element": kw["meter_number"],
+                "amount": "2000",
+            }},
+        }
+    monkeypatch.setattr(vtpass, "buy_electricity", delivered_without_token)
+    assert vending.process_once()["status"] == "pending"
+    receipt = client.get(f"/api/electricity/orders/{order_id}", headers=headers).get_json()
+    assert receipt["status"] == "pending"
+    assert receipt["token"] is None
+    prove_ledgers_balanced()
+
+
+def test_missing_reference_on_requery_never_refunds(monkeypatch):
+    client = create_app().test_client()
+    headers, user_id, order_id = setup_order(client, monkeypatch)
+    monkeypatch.setattr(vtpass, "buy_electricity", lambda **kw: {"code": "099"})
+    assert vending.process_once()["status"] == "pending"
+    with connect() as conn:
+        with conn.transaction(), conn.cursor() as cur:
+            cur.execute("UPDATE electricity_orders SET next_check_at=now() WHERE id=%s", (order_id,))
+    monkeypatch.setattr(vtpass, "requery", lambda ref: {"code": "016"})
+    assert vending.process_once()["status"] == "manual_review"
+    assert client.get("/api/wallet", headers=headers).get_json()["balance_kobo"] == 0
     prove_ledgers_balanced()
