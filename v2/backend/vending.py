@@ -15,6 +15,7 @@ from cryptography.fernet import Fernet, InvalidToken
 from db import connect
 from errors import ApiError
 from ledger import apply_wallet_delta, post_journal
+from provider_evidence import validate_provider_result
 from security import password_verify
 import vtpass
 
@@ -227,7 +228,7 @@ def claim_requery():
                 return None
             cur.execute(
                 "UPDATE electricity_orders SET next_check_at=now()+interval '5 minutes',"
-                "last_checked_at=now(),updated_at=now() WHERE id=%s", (order["id"],),
+                "last_checked_at=now(),attempts=attempts+1,updated_at=now() WHERE id=%s", (order["id"],),
             )
     return order
 
@@ -266,8 +267,28 @@ def apply_result(order_id, response, *, from_requery):
                     (str(response.get("code", ""))[:12], order_id),
                 )
                 return "manual_review"
+            if kind in ("delivered", "failed") and (kind == "delivered" or from_requery):
+                reason = validate_provider_result(order, response, expected_kind=kind)
+                if reason:
+                    cur.execute(
+                        "UPDATE electricity_orders SET status='manual_review',"
+                        "provider_code=%s,updated_at=now() WHERE id=%s",
+                        (str(response.get("code", ""))[:12], order_id),
+                    )
+                    return "manual_review"
+            if kind == "delivered" and not token:
+                # A confirmed vendor delivery without a readable 20-digit
+                # token is not yet a usable electricity receipt. Requery once
+                # more and hold the reservation, never silently mark it done.
+                cur.execute(
+                    "UPDATE electricity_orders SET status='pending',"
+                    "provider_code=%s,next_check_at=now()+interval '5 minutes',"
+                    "updated_at=now() WHERE id=%s",
+                    (str(response.get("code", ""))[:12], order_id),
+                )
+                return "pending"
             if kind == "delivered":
-                encrypted = cipher().encrypt(token.encode()).decode() if token else None
+                encrypted = cipher().encrypt(token.encode()).decode()
                 cur.execute("SELECT id FROM ledger_accounts WHERE code='vtpass:suspense'")
                 suspense = cur.fetchone()["id"]
                 cur.execute("SELECT id FROM ledger_accounts WHERE code='vtpass:clearing'")
