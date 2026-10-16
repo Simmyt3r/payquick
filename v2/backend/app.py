@@ -19,7 +19,7 @@ from errors import ApiError
 from ledger import apply_wallet_delta
 from meter import capability, validate_meter
 from paystack import initialize as paystack_initialize, verify as paystack_verify
-from security import new_token, password_hash, password_verify, require_auth
+from security import new_token, password_hash, password_verify, require_auth, require_operator
 from vending import prepare_quote, verify_saved_meter, create_order, describe_order, list_orders
 
 
@@ -272,6 +272,13 @@ def create_app():
     @require_auth
     def electricity_order_status(order_id):
         return jsonify(describe_order(g.user_id, str(order_id)))
+
+    @app.get("/api/operator/reconciliation")
+    @require_operator
+    def operator_reconciliation():
+        # Read-only aggregate audit, never exposes customer records or tokens.
+        from reconciliation import calculate_report
+        return jsonify(calculate_report())
 
     return app
 
