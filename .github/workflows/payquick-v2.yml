@@ -1,0 +1,68 @@
+name: Payquick v2 checks and Android APK
+
+on:
+  push:
+    branches: [main, feat/payquick-v2-foundation]
+    paths: ["v2/**", ".github/workflows/payquick-v2.yml"]
+  pull_request:
+    paths: ["v2/**", ".github/workflows/payquick-v2.yml"]
+  workflow_dispatch:
+
+jobs:
+  api-tests:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2/backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: pip install -r requirements.txt
+      - run: python -m compileall -q .
+      - run: pytest -q
+        env:
+          PAYMENTS_ENABLED: 'false'
+
+  web-build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+
+  android-debug:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: v2/frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - run: npm install --no-audit --no-fund
+      - run: npm run build
+        env:
+          VITE_API_URL: ${{ vars.PAYQUICK_API_URL }}
+      - run: npx cap add android
+      - run: npx cap sync android
+      - name: Build test APK
+        run: cd android && chmod +x ./gradlew && ./gradlew assembleDebug --no-daemon
+      - uses: actions/upload-artifact@v4
+        with:
+          name: payquick-v2-debug-apk
+          path: v2/frontend/android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
