@@ -65,6 +65,11 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - name: Confirm public homepage renders without backend variables
+        run: npm run test:landing
+        env:
+          VITE_API_URL: ''
+          DATABASE_URL: ''
       - run: npm run build
 
   android-debug:
