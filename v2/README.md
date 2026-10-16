@@ -11,11 +11,11 @@ The original React Native/Expo/Firebase application remains unchanged in the rep
 - Paystack checkout initialization and a signed, independently verified funding webhook, **disabled by default**.
 - Provider meter verification, secure quotes, idempotent electricity-order reservations, a single-dispatch VTpass adapter, requery-only recovery, encrypted token receipts, customer order history and a separate worker (all purchase execution disabled by default).
 - React customer UI and a buildable PWA/Capacitor project.
-- GitHub Actions jobs for backend unit tests, web build and Android debug APK build.
+- GitHub Actions jobs for backend unit tests, web build and Android debug APK plus unsigned release AAB builds.
 
 ## Not implemented yet
 
-Live VTPass provider certification, meter auto-load transports, payment settlement reconciliation, admin panel, strong MFA, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.**
+Live VTPass provider certification, meter auto-load transports, **external provider/merchant settlement reconciliation** (internal read-only audit is implemented), admin panel, strong MFA, rate limiting, secure session refresh, account recovery, production KYC/AML, signing of Play release bundles, and PQ-AI. **Do not accept actual customer funds yet.**
 
 ## Backend setup
 
@@ -44,7 +44,7 @@ Capacitor 8 shares the same React client, but uses Android tooling to package it
 4. Debug APK: run assembleDebug in the generated android folder.
 5. Signed Play Store AAB: set up secure keystore and release signing in Android Studio/Gradle; then generate a signed bundleRelease. Never commit signing credentials.
 
-GitHub Actions generates a debug APK artifact, not a Play release. Configure repository variable PAYQUICK_API_URL for usable installed debug builds. A committed native project, lockfile, PNG/adaptive icons and verified signing/release pipeline remain release requirements.
+GitHub Actions generates a debug APK and an **unsigned** release AAB artifact. The unsigned AAB cannot be uploaded as a production Play Store release. Configure repository variable PAYQUICK_API_URL for usable installed debug builds. A committed native project, lockfile, PNG/adaptive icons and verified signing/release pipeline remain release requirements.
 
 ## Vercel projects
 
@@ -57,8 +57,8 @@ Vercel does not create the Aiven database or perform financial reconciliation au
 ## Next development
 
 1. Run the VTpass sandbox pilot and PostgreSQL tests. See docs/ELECTRICITY_VENDING.md; do not enable live vending.
-2. Build server-authoritative VTPass catalogue and vending with an idempotent outbox and status requery.
-3. Add customer receipts, financial reconciliation and administrative controls.
+2. Certify VTpass vending and requery flows against a real provider sandbox; the outbox/one-dispatch implementation is already in source.
+3. Build external settlement reconciliation and a restricted operations dashboard. Run `python reconciliation.py` for internal ledger and suspense mismatch checks.
 4. Pilot a fully authorized remote meter-loading adapter.
 5. Add PQ-AI only after the transaction APIs are tested and secure.
 
