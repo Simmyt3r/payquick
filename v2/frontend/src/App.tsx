@@ -89,6 +89,13 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   const [drawer, setDrawer] = useState(false);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
   const [meters, setMeters] = useState<Meter[]>([]);
+  const [orders, setOrders] = useState<Array<{
+    id: string; status: string; amount_kobo: number; total_kobo: number;
+    meter_nickname: string; meter_number: string; disco: string; created_at: string;
+  }>>([]);
+  const [selectedReceipt, setSelectedReceipt] = useState<{
+    id: string; status: string; token: string | null; message: string;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -105,11 +112,12 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
   const token = session.access_token;
   const refresh = useCallback(async () => {
     try {
-      const [w, m] = await Promise.all([
+      const [w, m, o] = await Promise.all([
         api<WalletInfo>('/wallet', { token }),
         api<{ meters: Meter[] }>('/meters', { token }),
+        api<{ orders: typeof orders }>('/electricity/orders', { token }),
       ]);
-      setWallet(w); setMeters(m.meters); setError('');
+      setWallet(w); setMeters(m.meters); setOrders(o.orders); setError('');
     } catch (err) { setError((err as Error).message); }
   }, [token]);
   useEffect(() => { void refresh(); }, [refresh]);
@@ -164,6 +172,17 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
       setCurrentOrder(order);
       setNotice('Purchase queued. Do not submit another purchase while status is pending.');
       setConfirmationPassword('');
+      await refresh();
+    } catch (err) { setError((err as Error).message); }
+    finally { setBusy(false); }
+  }
+  async function viewReceipt(orderId: string) {
+    setBusy(true); setError('');
+    try {
+      const receipt = await api<{ id: string; status: string; token: string | null; message: string }>(
+        '/electricity/orders/' + orderId, { token },
+      );
+      setSelectedReceipt(receipt);
       await refresh();
     } catch (err) { setError((err as Error).message); }
     finally { setBusy(false); }
@@ -314,9 +333,31 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
         </form>
       </div>}
 
-      {section === 'activity' && <div className="surface p-10 text-center">
-        <History className="mx-auto text-brand-600" size={30}/><h2 className="font-bold text-xl mt-3">Transaction timeline coming next</h2>
-        <p className="muted mt-2 text-sm">Ledger-backed receipts and provider-status reconciliation are part of the next implementation phase.</p>
+      {section === 'activity' && <div className="space-y-4">
+        <h2 className="section-title">Electricity orders</h2>
+        {orders.length === 0 ? <div className="surface p-10 text-center">
+          <History className="mx-auto text-brand-600" size={30}/>
+          <p className="font-bold text-xl mt-3">No electricity orders yet</p>
+          <p className="muted mt-2 text-sm">Orders will appear here after purchase authorization.</p>
+        </div> : orders.map(order => <div key={order.id} className="surface p-5 flex flex-wrap justify-between items-center gap-3">
+          <div>
+            <p className="font-bold">{order.meter_nickname} · {money(order.total_kobo)}</p>
+            <p className="text-sm muted">{order.disco} · {order.meter_number}</p>
+            <p className="text-xs muted mt-2">{new Date(order.created_at).toLocaleString('en-NG')} · {order.status}</p>
+          </div>
+          <button disabled={busy} onClick={() => void viewReceipt(order.id)} className="text-brand-700 text-sm font-bold hover:underline">
+            View latest status
+          </button>
+        </div>)}
+        {selectedReceipt && <div className="surface p-5 space-y-2">
+          <div className="flex items-center justify-between">
+            <p className="font-bold">Order {selectedReceipt.id.slice(0,8)}</p>
+            <button aria-label="Close receipt" onClick={() => setSelectedReceipt(null)}><X size={18}/></button>
+          </div>
+          <p className="text-sm">Status: <b>{selectedReceipt.status}</b></p>
+          {selectedReceipt.token && <p className="font-mono break-all font-bold">Token: {selectedReceipt.token}</p>}
+          <p className="muted text-sm">{selectedReceipt.message}</p>
+        </div>}
       </div>}
       <footer className="text-xs muted mt-10 flex flex-wrap gap-2 items-center"><CheckCircle2 size={14}/>Secure API foundation · <span>Payquick v2 preview</span> · <span>Payments not yet released</span></footer>
     </main>
