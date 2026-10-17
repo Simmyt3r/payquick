@@ -65,6 +65,8 @@ jobs:
         with:
           node-version: '22'
       - run: npm install --no-audit --no-fund
+      - name: Check Vercel multi-service routing and service bindings
+        run: npm run test:services
       - name: Confirm public homepage renders without backend variables
         run: npm run test:landing
         env:
