@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "test:landing": "node scripts/test-landing.mjs",
+    "test:services": "node scripts/test-services.mjs",
     "preview": "vite preview",
     "android:init": "npx cap add android",
     "android:sync": "npm run build && npx cap sync android",
