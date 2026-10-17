@@ -52,11 +52,18 @@ Capacitor 8 shares the same React client, but uses Android tooling to package it
 
 GitHub Actions generates a debug APK and an **unsigned** release AAB artifact. The unsigned AAB cannot be uploaded as a production Play Store release. Configure repository variable PAYQUICK_API_URL for usable installed debug builds. A committed native project, lockfile, PNG/adaptive icons and verified signing/release pipeline remain release requirements.
 
-## Vercel projects
+## Vercel multi-service project
 
-Import the same GitHub repo twice with separate root directories:
-- Backend: v2/backend (Flask autodetection from app.py).
-- Web: v2/frontend (Vite output dist).
+A repo-root `vercel.json` now defines two services under **one domain**:
+
+- `backend`: Flask entrypoint `app:app`, root `v2/backend`, public only on `/api/*`.
+- `frontend`: Vite SPA, root `v2/frontend`, public on all other paths.
+
+Browser API calls use same-origin `/api/*` and **do not consume server-side bindings**. There are currently no server-to-server calls between the two services, so no artificial binding was added. The legacy Vite development proxy to localhost is for `npm run dev` only. `VITE_API_URL` remains required for installed Capacitor Android clients to reach a real HTTPS backend.
+
+For a new multi-service Vercel import, select the **repository root** (not `v2/frontend`). The earlier frontend-only Vercel project continues to work with its existing root configuration and does not become a multi-service deployment automatically. See [multi-service deployment guide](docs/VERCEL_MULTISERVICE.md).
+
+Existing standalone option: a separate frontend project rooted at `v2/frontend` and Flask project rooted at `v2/backend`, if the multi-service beta is unavailable.
 
 Vercel does not create the Aiven database or perform financial reconciliation automatically. Migrations must be applied with privileged operator approval.
 
