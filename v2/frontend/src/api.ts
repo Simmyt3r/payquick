@@ -11,13 +11,16 @@ export type Quote = {
   remote_loading_supported: boolean; execution_enabled: boolean; message: string;
 };
 
-const baseUrl = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+// Web/PWA always uses same-origin /api, routed by the root Vercel services rewrite.
+// VITE_API_URL is an Android/iOS native-only HTTPS origin, not a browser service binding.
+const nativeApiOrigin = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
+const nativeClient = Capacitor.isNativePlatform();
 
 export async function api<T>(path: string, options: { method?: string; token?: string; body?: unknown } = {}): Promise<T> {
-  if (Capacitor.isNativePlatform() && !baseUrl) {
+  if (nativeClient && !nativeApiOrigin) {
     throw new Error('Android app needs VITE_API_URL set to the public HTTPS API.');
   }
-  const res = await fetch(baseUrl + '/api' + path, {
+  const res = await fetch((nativeClient ? nativeApiOrigin : '') + '/api' + path, {
     method: options.method || 'GET',
     headers: {
       ...(options.token ? { Authorization: 'Bearer ' + options.token } : {}),
