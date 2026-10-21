@@ -131,6 +131,8 @@ def apply_next(*, actor_id=None):
     with _connect() as conn:
         with conn.transaction(), conn.cursor() as cur:
             cur.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK_ID,))
+            if _completed(cur):
+                raise ApiError(403, "Initial setup completed; use the administrator dashboard")
             plan = _plan(cur)
             pending = next((x for x in plan if x["status"] == "pending"), None)
             if pending is None:
