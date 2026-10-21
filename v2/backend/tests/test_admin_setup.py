@@ -66,6 +66,8 @@ def test_setup_token_protected_and_not_exposed(monkeypatch, empty_database):
     assert client.get("/api/admin/migrations").status_code == 401
     response = client.post("/api/setup/status", headers=headers)
     assert response.status_code == 200, response.get_json()
+    assert response.headers["Cache-Control"] == "no-store"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
     assert len(response.json["migrations"]) == 7
     assert response.json["next_migration"] == "0001_initial.sql"
     assert not response.json["bootstrap_completed"]
