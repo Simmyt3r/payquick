@@ -99,3 +99,7 @@ The default `/` route is now a standalone, fully responsive public homepage. It 
 ## Deployment status
 
 The public V2 frontend deployment is READY from the tested feature branch and its project/commit/links are recorded in [Deployment status](docs/DEPLOYMENT_STATUS.md). The `mdsilabs/payquick` fork is currently read-only through the connected GitHub integration, so it has **not** been synced or deployed. The original `main` branch is preserved.
+
+## Initial administrator and admin-managed migrations
+
+The v2 frontend now has `/setup` (one-time, token-guarded bootstrap) and `/admin` (database-authorized administrator dashboard). Configure your first admin email/password and a high-entropy setup token **in Vercel**, run each allowlisted migration, then create the admin and remove setup secrets. Future migrations require admin sign-in, password confirmation, migration-write flag and a verified database backup. See [Administrator setup manual](docs/ADMIN_SETUP.md).
