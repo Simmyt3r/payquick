@@ -77,6 +77,18 @@ def customer_readiness():
             result["checks"]["schema"] = "incomplete"
             return result, 503
         result["checks"]["schema"] = "ready"
+        if os.getenv("PAYQUICK_SETUP_ENABLED") == "true":
+            cur = None
+            with connect() as conn, conn.cursor() as cur:
+                cur.execute("SELECT to_regclass('public.payquick_setup_state') IS NOT NULL AS present")
+                if not cur.fetchone()["present"]:
+                    result["checks"]["administrator"] = "setup_incomplete"
+                    return result, 503
+                cur.execute("SELECT EXISTS(SELECT 1 FROM payquick_setup_state WHERE singleton=true) AS completed")
+                if not cur.fetchone()["completed"]:
+                    result["checks"]["administrator"] = "setup_incomplete"
+                    return result, 503
+            result["checks"]["administrator"] = "ready"
         result["status"] = "ready"
         result["customer_api_ready"] = True
         return result, 200
