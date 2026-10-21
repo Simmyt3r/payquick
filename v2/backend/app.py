@@ -22,7 +22,7 @@ from errors import ApiError
 from ledger import apply_wallet_delta
 from meter import capability, validate_meter
 from paystack import initialize as paystack_initialize, verify as paystack_verify
-from security import new_token, password_hash, password_verify, require_auth, require_operator
+from security import new_token, password_hash, password_verify, require_auth, require_operator, require_admin
 from vending import prepare_quote, verify_saved_meter, create_order, describe_order, list_orders
 import vtu_provider
 import vtu_service
@@ -48,7 +48,7 @@ def create_app():
     app = Flask(__name__)
     allowed = os.getenv("FRONTEND_ORIGINS", "http://localhost:5173").split(",")
     CORS(app, resources={r"/api/*": {"origins": [s.strip() for s in allowed]}},
-         allow_headers=["Authorization", "Content-Type"], methods=["GET", "POST", "OPTIONS"])
+         allow_headers=["Authorization", "Content-Type", "X-Payquick-Setup-Token"], methods=["GET", "POST", "OPTIONS"])
     app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
     @app.errorhandler(ApiError)
@@ -80,8 +80,57 @@ def create_app():
     @app.before_request
     def require_account_setup():
         # Keep anonymous protected routes' normal 401 behavior unchanged.
-        if request.endpoint in ("register", "login") and not accounts_configured():
-            raise ApiError(503, "Customer accounts are not configured yet")
+        if request.endpoint in ("register", "login"):
+            if not accounts_configured():
+                raise ApiError(503, "Customer accounts are not configured yet")
+            if os.getenv("PAYQUICK_SETUP_ENABLED") == "true":
+                from migration_manager import check_setup_open
+                try:
+                    check_setup_open()
+                except ApiError as error:
+                    if error.status != 403:  # Setup is incomplete; customer login remains closed.
+                        raise ApiError(503, "Administrator setup has not been completed") from error
+                else:
+                    raise ApiError(503, "Administrator setup has not been completed")
+
+    @app.post("/api/setup/status")
+    def initial_setup_status():
+        from migration_manager import ensure_setup_token, check_setup_open, status
+        ensure_setup_token(request.headers.get("X-Payquick-Setup-Token"))
+        check_setup_open()
+        return jsonify(status())
+
+    @app.post("/api/setup/apply-next")
+    def initial_setup_migrate():
+        from migration_manager import ensure_setup_token, check_setup_open, apply_next
+        ensure_setup_token(request.headers.get("X-Payquick-Setup-Token"))
+        check_setup_open()
+        return jsonify(apply_next())
+
+    @app.post("/api/setup/create-admin")
+    def initial_setup_admin():
+        from migration_manager import ensure_setup_token, check_setup_open, bootstrap_admin
+        ensure_setup_token(request.headers.get("X-Payquick-Setup-Token"))
+        check_setup_open()
+        return jsonify(bootstrap_admin()), 201
+
+    @app.get("/api/admin/migrations")
+    @require_admin
+    def admin_migration_status():
+        from migration_manager import admin_status
+        return jsonify(admin_status())
+
+    @app.post("/api/admin/migrations/apply-next")
+    @require_admin
+    def admin_migration_apply():
+        from migration_manager import admin_apply_next
+        body = json_body()
+        return jsonify(admin_apply_next(g.user_id, body.get("confirmation_password")))
+
+    @app.get("/api/admin/me")
+    @require_admin
+    def admin_identity():
+        return jsonify({"role": "admin", "id": str(g.user_id)})
 
     @app.get("/api/ready")
     def ready():
@@ -116,7 +165,7 @@ def create_app():
                     )
                     account_id = cur.fetchone()["id"]
                     cur.execute("INSERT INTO wallets(user_id,account_id) VALUES (%s,%s)", (user_id, account_id))
-        return jsonify({"access_token": new_token(user_id), "user": {"id": str(user_id), "name": name, "email": email}}), 201
+        return jsonify({"access_token": new_token(user_id), "user": {"id": str(user_id), "name": name, "email": email, "role": "customer"}}), 201
 
     @app.post("/api/auth/login")
     def login():
@@ -126,19 +175,19 @@ def create_app():
         if not isinstance(password, str):
             raise ApiError(401, "Invalid credentials")
         with connect() as conn, conn.cursor() as cur:
-            cur.execute("SELECT id,name,email,password_hash FROM users WHERE email=%s", (email,))
+            cur.execute("SELECT id,name,email,password_hash,role FROM users WHERE email=%s", (email,))
             user = cur.fetchone()
         if not user or not password_verify(user["password_hash"], password):
             raise ApiError(401, "Invalid credentials")
         return {"access_token": new_token(user["id"]), "user": {
-            "id": str(user["id"]), "name": user["name"], "email": user["email"],
+            "id": str(user["id"]), "name": user["name"], "email": user["email"], "role": user["role"],
         }}
 
     @app.get("/api/me")
     @require_auth
     def me():
         with connect() as conn, conn.cursor() as cur:
-            cur.execute("SELECT id,name,email FROM users WHERE id=%s", (g.user_id,))
+            cur.execute("SELECT id,name,email,role FROM users WHERE id=%s", (g.user_id,))
             user = cur.fetchone()
         if not user:
             raise ApiError(401, "Account not found")
