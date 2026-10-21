@@ -28,7 +28,7 @@ def password_verify(hash_value, value):
 def token_secret():
     value = os.getenv("JWT_SECRET", "")
     if len(value) < 48 or value.startswith("CHANGE_"):
-        raise RuntimeError("JWT_SECRET must be configured with at least 48 random characters")
+        raise ApiError(503, "Authentication services are not configured yet")
     return value
 
 

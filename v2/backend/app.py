@@ -11,10 +11,12 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, g, request
+from psycopg import OperationalError, InterfaceError
 from flask_cors import CORS
 from psycopg.errors import UniqueViolation
 
-from db import connect
+from db import connect, DatabaseConfigurationError
+from operational import accounts_configured, customer_readiness
 from errors import ApiError
 from ledger import apply_wallet_delta
 from meter import capability, validate_meter
@@ -60,6 +62,27 @@ def create_app():
     def unexpected(error):
         app.logger.exception("Unhandled exception")
         return jsonify({"error": "Unexpected server error"}), 500
+
+
+    @app.errorhandler(DatabaseConfigurationError)
+    @app.errorhandler(OperationalError)
+    @app.errorhandler(InterfaceError)
+    def database_unavailable(_error):
+        # Expected operational failure: do not leak exception text or a DSN.
+        return jsonify({"error": "Customer account services are temporarily unavailable"}), 503
+
+    @app.before_request
+    def require_account_setup():
+        # Keep anonymous protected routes' normal 401 behavior unchanged.
+        if request.endpoint in ("register", "login") and not accounts_configured():
+            raise ApiError(503, "Customer accounts are not configured yet")
+
+    @app.get("/api/ready")
+    def ready():
+        body, code = customer_readiness()
+        response = jsonify(body)
+        response.headers["Cache-Control"] = "no-store"
+        return response, code
 
     @app.get("/api/health")
     def health():
