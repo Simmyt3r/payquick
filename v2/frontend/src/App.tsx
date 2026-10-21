@@ -7,6 +7,8 @@ import {
 import { api, money, type Meter, type Quote, type Session, type WalletInfo } from './api';
 import StandardVtu from './StandardVtu';
 import Landing from './Landing';
+import Setup from './Setup';
+import Admin from './Admin';
 
 type Section = 'overview' | 'meters' | 'wallet' | 'activity' | 'vtu';
 const discos = [
@@ -101,7 +103,7 @@ function MeterCard({ meter, onQuote, onVerify, busy }: { meter: Meter; onQuote: 
     </div>
   </div>;
 }
-function Dashboard({ session, onLogout }: { session: Session; onLogout: () => void }) {
+function Dashboard({ session, onLogout, onAdmin }: { session: Session; onLogout: () => void; onAdmin: () => void }) {
   const [section, setSection] = useState<Section>('overview');
   const [drawer, setDrawer] = useState(false);
   const [wallet, setWallet] = useState<WalletInfo | null>(null);
@@ -246,6 +248,7 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
         {links.map(link => <button key={link.key} className={'nav-btn ' + (section === link.key ? 'nav-active' : '')}
           onClick={() => navigate(link.key)}><link.icon size={19}/>{link.name}</button>)}
       </nav>
+      {session.user.role === 'admin' && <button type="button" className="nav-btn text-brand-700" onClick={onAdmin}><ShieldCheck size={18}/>Admin dashboard</button>}
       <div className="mt-auto border-t pt-6">
         <p className="text-sm font-bold truncate">{session.user.name}</p>
         <p className="text-xs muted truncate mt-1">{session.user.email}</p>
@@ -383,12 +386,12 @@ function Dashboard({ session, onLogout }: { session: Session; onLogout: () => vo
     </main>
   </div>;
 }
-type AppRoute = '/' | '/login' | '/register' | '/app';
+type AppRoute = '/' | '/login' | '/register' | '/app' | '/setup' | '/admin';
 
 function getInitialRoute(): AppRoute {
   if (typeof window === 'undefined') return '/';
   const route = window.location.pathname;
-  return route === '/login' || route === '/register' || route === '/app' ? route : '/';
+  return route === '/login' || route === '/register' || route === '/app' || route === '/setup' || route === '/admin' ? route : '/';
 }
 
 export default function App() {
@@ -409,8 +412,14 @@ export default function App() {
   if (route === '/') {
     return <Landing onSignIn={() => navigate('/login')} onGetStarted={() => navigate('/register')}/>;
   }
+  if (route === '/setup') {
+    return <Setup onHome={() => navigate('/')} onLogin={() => navigate('/login')}/>;
+  }
+  if (route === '/admin' && session && session.user.role === 'admin') {
+    return <Admin session={session} onBack={() => navigate('/app')} onLogout={() => { setSession(null); navigate('/login'); }}/>;
+  }
   if (route === '/app' && session) {
-    return <Dashboard session={session} onLogout={() => {
+    return <Dashboard session={session} onAdmin={() => navigate('/admin')} onLogout={() => {
       setSession(null);
       navigate('/login');
     }}/>;
