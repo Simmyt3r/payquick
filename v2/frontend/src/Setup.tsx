@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, CircleAlert, Database, LockKeyhole, RefreshCw, ShieldCheck, Wrench } from 'lucide-react';
 import { api } from './api';
 import './AdminSetup.css';
@@ -23,7 +23,7 @@ export default function Setup({ onHome, onLogin }: { onHome: () => void; onLogin
     return api<T>(path, { method: 'POST', headers: { 'X-Payquick-Setup-Token': value } });
   }
 
-  async function inspect(e?: React.FormEvent) {
+  async function inspect(e?: FormEvent) {
     e?.preventDefault();
     if (token.length < 48) return setError('Enter the complete setup token from your Vercel environment.');
     setBusy(true); setError(''); setMessage('');
