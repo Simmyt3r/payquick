@@ -92,10 +92,11 @@ def test_first_setup_migration_sequence_and_admin_lifecycle(monkeypatch, empty_d
         assert len([m for m in inspected.json["migrations"] if m["status"] == "applied"]) == names.index(name) + 1
 
     assert client.post("/api/setup/apply-next", headers=headers).json["status"] == "up_to_date"
-    assert client.get("/api/ready").status_code == 200
+    assert client.get("/api/ready").status_code == 503
     created = client.post("/api/setup/create-admin", headers=headers)
     assert created.status_code == 201, created.get_json()
     assert created.json["status"] == "complete"
+    assert client.get("/api/ready").status_code == 200
 
     # The setup token is rejected after completion, even before env is cleared.
     for path in ("/api/setup/status", "/api/setup/apply-next", "/api/setup/create-admin"):
