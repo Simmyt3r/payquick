@@ -11,6 +11,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from flask import Flask, jsonify, g, request
+from werkzeug.exceptions import HTTPException
 from psycopg import OperationalError, InterfaceError
 from flask_cors import CORS
 from psycopg.errors import UniqueViolation
@@ -57,6 +58,11 @@ def create_app():
     @app.errorhandler(UniqueViolation)
     def duplicate(_error):
         return jsonify({"error": "This record already exists"}), 409
+
+    @app.errorhandler(HTTPException)
+    def http_failure(error):
+        # Unsupported routes/methods should never masquerade as HTTP 500.
+        return jsonify({"error": error.description}), error.code
 
     @app.errorhandler(Exception)
     def unexpected(error):

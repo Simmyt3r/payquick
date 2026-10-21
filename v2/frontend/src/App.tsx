@@ -39,8 +39,17 @@ function Auth({ onSuccess, register, onModeChange, onBack }: {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [availability, setAvailability] = useState<'checking' | 'ready' | 'unavailable'>('checking');
+  useEffect(() => {
+    let active = true;
+    void api<{ status: string }>('/ready')
+      .then(result => { if (active) setAvailability(result.status === 'ready' ? 'ready' : 'unavailable'); })
+      .catch(() => { if (active) setAvailability('unavailable'); });
+    return () => { active = false; };
+  }, []);
   async function submit(e: FormEvent) {
     e.preventDefault();
+    if (availability !== 'ready') return;
     setBusy(true); setError('');
     try {
       const session = await api<Session>(register ? '/auth/register' : '/auth/login', {
@@ -65,11 +74,13 @@ function Auth({ onSuccess, register, onModeChange, onBack }: {
         <div><p className="text-brand-600 font-semibold text-sm mb-1">Welcome to Payquick</p>
           <h2 className="text-3xl font-bold tracking-tight">{register ? 'Create your account' : 'Sign in securely'}</h2>
           <p className="muted mt-2 text-sm">A fresh start with reliable utility services.</p></div>
+        {availability === 'checking' && <p role="status" className="text-sm text-slate-600 bg-blue-50 border border-blue-100 rounded-xl p-3">Checking account service availability…</p>}
+        {availability === 'unavailable' && <p role="status" className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded-xl p-3">Account services are being configured. Registration and sign-in are temporarily unavailable. You can still explore the Payquick homepage.</p>}
         {register && <label className="field">Full name<input required value={name} onChange={e => setName(e.target.value)} minLength={2} maxLength={100} placeholder="Your full name" /></label>}
         <label className="field">Email address<input required type="email" autoComplete="email" value={email} onChange={e => setEmail(e.target.value)} placeholder="you@example.com" /></label>
         <label className="field">Password<input required type="password" autoComplete={register ? 'new-password' : 'current-password'} minLength={register ? 12 : undefined} value={password} onChange={e => setPassword(e.target.value)} placeholder={register ? '12 characters minimum' : 'Your password'} /></label>
         {error && <p role="alert" className="error">{error}</p>}
-        <Button type="submit" disabled={busy}>{busy ? 'Please wait…' : register ? 'Create account' : 'Sign in'}<ArrowRight size={16} /></Button>
+        <Button type="submit" disabled={busy || availability !== 'ready'}>{busy ? 'Please wait…' : availability === 'checking' ? 'Checking availability…' : availability === 'unavailable' ? 'Temporarily unavailable' : register ? 'Create account' : 'Sign in'}<ArrowRight size={16} /></Button>
         <p className="text-sm text-center muted">{register ? 'Already registered?' : 'New to Payquick?'} <button type="button" className="text-brand-700 font-bold" onClick={() => { onModeChange(!register); setError(''); }}>{register ? 'Sign in' : 'Create account'}</button></p>
         <p className="text-xs muted flex gap-2 items-start"><LockKeyhole size={15} className="shrink-0"/>Short-lived sessions are used while stronger device authentication is being developed.</p>
       </form>

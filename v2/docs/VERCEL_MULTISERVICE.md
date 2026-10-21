@@ -60,3 +60,9 @@ CI runs these tests. The service contract check tests service names, routing pre
 3. Keep zero internal bindings until a real server-side caller is introduced?
 
 Official guide: https://vercel.com/docs/services
+
+## Post-deployment readiness and registration UX
+
+The deployment now separates liveness (`GET /api/health`, HTTP 200 for a running Flask process) from customer readiness (`GET /api/ready`, HTTP 200 only after TLS PostgreSQL, JWT secret and required migrations are available; otherwise HTTP 503 with non-sensitive check statuses). Login/registration fail safely with 503 if not configured. The client checks readiness on the login/register screen and disables submission when unavailable, rather than presenting a misleading working form. Known database connection failures respond with 503 and no secrets. Unknown API routes/methods retain correct HTTP 404/405, not a generic HTTP 500.
+
+Do not enable live payment switches merely to turn readiness green. Readiness is for customer account infrastructure, **not** provider certification. The UI's public landing remains independent of readiness.

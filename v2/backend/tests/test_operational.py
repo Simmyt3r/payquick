@@ -100,6 +100,21 @@ def test_authenticated_missing_secret_returns_503_not_500(monkeypatch):
         assert "SECRET" not in response.get_data(as_text=True)
 
 
+def test_missing_api_route_responds_json_404_not_500():
+    with create_app().test_client() as client:
+        response = client.get("/api/definitely-not-a-route")
+        assert response.status_code == 404
+        assert response.is_json
+        assert "error" in response.get_json()
+
+
+def test_wrong_http_method_responds_405_not_500():
+    with create_app().test_client() as client:
+        response = client.put("/api/health")
+        assert response.status_code == 405
+        assert response.is_json
+
+
 def test_financial_switch_does_not_change_account_readiness(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.setenv("PAYMENTS_ENABLED", "true")
