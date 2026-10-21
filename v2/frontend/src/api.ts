@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 
-export type Session = { access_token: string; user: { id: string; name: string; email: string } };
+export type Session = { access_token: string; user: { id: string; name: string; email: string; role?: 'customer' | 'operator' | 'admin' } };
 export type WalletInfo = { balance_kobo: number; currency: 'NGN' };
 export type Meter = {
   id: string; nickname: string; disco: string; meter_number: string; meter_type: string;
@@ -16,7 +16,7 @@ export type Quote = {
 const nativeApiOrigin = (import.meta.env.VITE_API_URL as string | undefined)?.replace(/\/$/, '') || '';
 const nativeClient = Capacitor.isNativePlatform();
 
-export async function api<T>(path: string, options: { method?: string; token?: string; body?: unknown } = {}): Promise<T> {
+export async function api<T>(path: string, options: { method?: string; token?: string; body?: unknown; headers?: Record<string, string> } = {}): Promise<T> {
   if (nativeClient && !nativeApiOrigin) {
     throw new Error('Android app needs VITE_API_URL set to the public HTTPS API.');
   }
@@ -24,6 +24,7 @@ export async function api<T>(path: string, options: { method?: string; token?: s
     method: options.method || 'GET',
     headers: {
       ...(options.token ? { Authorization: 'Bearer ' + options.token } : {}),
+      ...(options.headers || {}),
       ...(options.body !== undefined ? { 'Content-Type': 'application/json' } : {}),
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
