@@ -51,6 +51,14 @@ def create_app():
          allow_headers=["Authorization", "Content-Type", "X-Payquick-Setup-Token"], methods=["GET", "POST", "OPTIONS"])
     app.config["MAX_CONTENT_LENGTH"] = 64 * 1024
 
+    @app.after_request
+    def security_headers(response):
+        if request.path.startswith(("/api/setup/", "/api/admin/")):
+            response.headers["Cache-Control"] = "no-store"
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Referrer-Policy"] = "no-referrer"
+        return response
+
     @app.errorhandler(ApiError)
     def fail(error):
         return jsonify({"error": error.message}), error.status
