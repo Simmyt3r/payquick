@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type FormEvent } from 'react';
 import { ArrowLeft, CheckCircle2, CircleAlert, Database, RefreshCw, ShieldCheck } from 'lucide-react';
 import { api, type Session } from './api';
 import './AdminSetup.css';
@@ -27,7 +27,7 @@ export default function Admin({ session, onBack, onLogout }: {
 
   useEffect(() => { void refresh(); }, [refresh]);
 
-  async function applyNext(e: React.FormEvent) {
+  async function applyNext(e: FormEvent) {
     e.preventDefault();
     if (!status?.next_migration || !status.admin_migrations_enabled || !confirmed || !password) return;
     setBusy(true); setError(''); setNotice('');
