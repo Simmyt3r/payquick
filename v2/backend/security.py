@@ -75,8 +75,25 @@ def require_operator(fn):
         with connect() as conn, conn.cursor() as cur:
             cur.execute("SELECT role FROM users WHERE id=%s", (g.user_id,))
             user = cur.fetchone()
-        if not user or user["role"] != "operator":
+        if not user or user["role"] not in ("operator", "admin"):
             raise ApiError(403, "Operator access required")
         return fn(*args, **kwargs)
 
+    return wrapped
+
+
+
+def require_admin(fn):
+    """Every call rechecks the current DB role; JWT claims cannot confer admin."""
+    from db import connect
+
+    @wraps(fn)
+    @require_auth
+    def wrapped(*args, **kwargs):
+        with connect() as conn, conn.cursor() as cur:
+            cur.execute("SELECT role FROM users WHERE id=%s", (g.user_id,))
+            user = cur.fetchone()
+        if not user or user["role"] != "admin":
+            raise ApiError(403, "Administrator access required")
+        return fn(*args, **kwargs)
     return wrapped
