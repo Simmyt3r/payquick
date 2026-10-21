@@ -38,7 +38,7 @@ assert.equal(destination('/api/health')?.service, 'backend');
 assert.equal(destination('/api/auth/login')?.service, 'backend');
 assert.equal(destination('/api/vtu/catalog')?.service, 'backend');
 assert.equal(destination('/api/webhooks/paystack')?.service, 'backend');
-for (const path of ['/login', '/register', '/app']) {
+for (const path of ['/login', '/register', '/app', '/setup', '/admin']) {
   assert.deepEqual(destination(path), {service:'frontend', path:'/index.html'});
 }
 for (const path of ['/', '/assets/app.js', '/icon.svg', '/manifest.webmanifest']) {
