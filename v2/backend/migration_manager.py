@@ -10,8 +10,6 @@ import os
 from pathlib import Path
 import re
 
-from psycopg import sql as pgsql
-from psycopg.errors import UndefinedTable
 
 from db import connect
 from errors import ApiError
@@ -130,6 +128,8 @@ def apply_next(*, actor_id=None):
     # One allowlisted file per invocation so Vercel requests are bounded.
     with _connect() as conn:
         with conn.transaction(), conn.cursor() as cur:
+            cur.execute("SET LOCAL lock_timeout = '5s'")
+            cur.execute("SET LOCAL statement_timeout = '25s'")
             cur.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK_ID,))
             if _completed(cur):
                 raise ApiError(403, "Initial setup completed; use the administrator dashboard")
@@ -171,6 +171,8 @@ def bootstrap_admin():
     hashed = password_hash(password)
     with _connect() as conn:
         with conn.transaction(), conn.cursor() as cur:
+            cur.execute("SET LOCAL lock_timeout = '5s'")
+            cur.execute("SET LOCAL statement_timeout = '25s'")
             cur.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK_ID,))
             plan = _plan(cur)
             if any(p["status"] != "applied" for p in plan):
@@ -227,6 +229,8 @@ def admin_apply_next(user_id, password):
     with _connect() as conn:
         with conn.transaction(), conn.cursor() as cur:
             # Serialize with first-setup work and concurrent admin requests.
+            cur.execute("SET LOCAL lock_timeout = '5s'")
+            cur.execute("SET LOCAL statement_timeout = '25s'")
             cur.execute("SELECT pg_advisory_xact_lock(%s)", (LOCK_ID,))
             admin_password_check(cur, user_id, password)
             if not _completed(cur):
